@@ -33,6 +33,7 @@ Primary library choices with fallbacks. Every external service sits behind a Go 
 | OpenAI Realtime | `WqyJh/go-openai-realtime` | Custom WS client | Yes |
 | Gemini Live | Custom WS client (`coder/websocket`) | — | Yes |
 | ONNX Runtime | `yalue/onnxruntime_go` | — | **No** — CGo wrapper |
+| Phonetic matching | `antzucaro/matchr` | — | Yes |
 
 ### CGo and Native Dependencies
 
@@ -55,7 +56,7 @@ Most of the stack is pure Go, but two components require CGo and system-level na
 | LLM (fast) | GPT-4o-mini (streaming) | Gemini 2.5 Flash | Ollama + Llama 3.x |
 | LLM (strong) | Claude Sonnet | GPT-4o | Ollama + Llama 3.1 70B |
 | TTS | ElevenLabs Flash v2.5 | Cartesia Sonic | Coqui XTTS (local) |
-| S2S | Gemini Live (`gemini-2.5-flash-native-audio`) | OpenAI Realtime (`gpt-4o-mini-realtime`) | — |
+| S2S | Gemini Live (`gemini-live-2.5-flash-native-audio`) | OpenAI Realtime (`gpt-realtime-mini`) | — |
 | Embeddings | OpenAI text-embedding-3-small | Voyage AI | nomic-embed-text (local) |
 | Audio Platform | Discord (discordgo) | — | WebRTC (custom, Pion) |
 

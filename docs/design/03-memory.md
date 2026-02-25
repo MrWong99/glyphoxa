@@ -83,7 +83,9 @@ This stage applies **only to the cascaded path** — S2S engines handle speech r
 
 ### Stage 2: Phonetic Entity Match (Cascaded: Inline, S2S: Background)
 
-A phonetic matching step compares transcript words against the known entity list using a phonetic algorithm (Double Metaphone). Misheard spans that phonetically match a known entity are corrected: "elder nacks" → Metaphone: "ELTR NKS" ≈ "Eldrinax" → corrected.
+A phonetic matching step compares transcript words against the known entity list using a phonetic algorithm (Double Metaphone). Misheard spans that phonetically match a known entity are corrected: "elder nacks" → Metaphone: "ELTR NKS" ≈ "Eldrinax" → corrected. Candidates are ranked by Jaro-Winkler similarity on the normalized strings to handle near-matches.
+
+**Go library:** `antzucaro/matchr` — provides Double Metaphone, Soundex, NYSIIS, Levenshtein, Damerau-Levenshtein, Jaro-Winkler, and Smith-Waterman in a single dependency. All functions are stateless and goroutine-safe. The default Double Metaphone max code length of 4 may need extending for longer fantasy names (fork or supplement with `vividvilla/metaphone` which supports configurable lengths up to 32).
 
 On the **cascaded path**, this runs inline (< 1ms) between STT and LLM prompt composition. The LLM sees a cleaner transcript, and speculative pre-fetch triggers more accurately. On the **S2S path**, phonetic matching runs in background as part of session processing — there is no inline STT step to hook into.
 
@@ -106,7 +108,45 @@ On the **cascaded path**, LLM correction triggers only for spans flagged as low-
 
 The knowledge graph serves as the canonical entity list for all correction stages: keyword boosting, phonetic matching, and LLM correction context. As more entities are extracted and confirmed, future transcriptions become more accurate — the system improves with use.
 
-Before the first session (or a new campaign), the DM registers key entity names via a pre-session setup step. This populates the initial KG and bootstraps the correction pipeline. See [Open Questions](08-open-questions.md) for the pre-session registration UX.
+Before the first session (or a new campaign), the DM registers key entity names via a pre-session setup step. This populates the initial KG and bootstraps the correction pipeline.
+
+### Pre-session Entity Registration
+
+The DM populates the knowledge graph before play begins. Three input methods, from quick to bulk:
+
+| Method | Use Case | Example |
+|---|---|---|
+| **Discord slash commands** | Quick additions during prep or mid-session | `/entity add "Eldrinax" npc --personality "paranoid wizard"` |
+| **Campaign config file** (YAML) | Bulk setup for a new campaign or arc. Loaded on startup or via `/campaign load`. | A YAML file listing entities with types, attributes, and relationships |
+| **VTT import** | Migrating from an existing virtual tabletop with established world data | Import from Foundry VTT (JSON export), Roll20 (JSON), or a generic CSV format |
+
+**Discord commands** are the primary interface — the DM is already in Discord running the session. Minimal commands:
+
+- `/entity add <name> <type>` — register a new entity (optional `--attributes` JSON)
+- `/entity list [type]` — list registered entities, optionally filtered by type
+- `/entity remove <name>` — delete an entity
+- `/campaign load <file>` — bulk-load entities from a YAML config file or VTT export
+
+**Campaign config file** follows a declarative format:
+
+```yaml
+entities:
+  - name: Eldrinax
+    type: npc
+    attributes:
+      personality: paranoid wizard, speaks in riddles
+      location: Tower of Whispers
+  - name: Ironhold
+    type: location
+    attributes:
+      description: dwarven mining city
+relationships:
+  - source: Eldrinax
+    target: Ironhold
+    type: LOCATED_AT
+```
+
+**VTT import** parses actor/item/scene data from Foundry VTT's `world.json` or Roll20's JSON export. Entity names and types are extracted; attributes are mapped best-effort. The DM reviews and confirms imported entities before they enter the knowledge graph.
 
 ## Session Processing Pipeline
 

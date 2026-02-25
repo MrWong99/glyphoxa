@@ -48,6 +48,38 @@ The LLM abstraction must support streaming completions, tool/function calling, s
 
 **Go library:** Custom streaming client over `coder/websocket` for ElevenLabs/Cartesia WebSocket APIs. OpenAI TTS is available via `openai/openai-go` (REST, non-streaming). Local Coqui XTTS uses a REST API wrapper.
 
+## Embeddings Provider Interface
+
+The embeddings abstraction handles text-to-vector conversion for the L2 semantic index. It is used by the session processing pipeline (chunking → embedding → pgvector storage) and by cold-layer vector search queries.
+
+| Method | Description |
+|---|---|
+| `Embed(ctx, text string) ([]float32, error)` | Embeds a single text string. Returns a dense vector. |
+| `EmbedBatch(ctx, texts []string) ([][]float32, error)` | Embeds multiple texts in a single API call. Providers that support batching (OpenAI, Voyage AI) are more efficient than sequential `Embed` calls. |
+| `Dimensions() int` | Returns the dimensionality of the embedding model's output vectors. Used to configure the pgvector column width. |
+| `ModelID() string` | Returns the model identifier (e.g., `text-embedding-3-small`). Stored alongside vectors for model migration tracking — vectors from different models are not comparable. |
+
+**Candidate providers:** OpenAI text-embedding-3-small (1536 dims, $0.02/1M tokens), Voyage AI voyage-3 (1024 dims), nomic-embed-text via Ollama (local, free, 768 dims).
+
+**Go library:** `openai/openai-go` for OpenAI embeddings (REST API, batch support). Voyage AI and nomic-embed-text use OpenAI-compatible REST endpoints, so the same client works with a different base URL. Alternatively, `mozilla-ai/any-llm-go` if it exposes embeddings (check at implementation time).
+
+## VAD Provider Interface
+
+Voice Activity Detection segments audio streams into speech and silence. VAD runs locally with no network hop, making it latency-free. It is the first stage of the audio pipeline — all audio passes through VAD before reaching STT or S2S engines.
+
+| Method | Description |
+|---|---|
+| `NewSession(cfg VADConfig) (*VADSession, error)` | Creates a new VAD session with the given configuration (sample rate, frame size, speech/silence thresholds). |
+| `Session.ProcessFrame(frame []byte) (VADEvent, error)` | Processes a single audio frame and returns a speech/silence event. Must be sub-millisecond. |
+| `Session.Reset()` | Resets the internal state (e.g., between speakers or after a long silence). |
+| `Session.Close() error` | Releases resources (ONNX session, model memory). |
+
+`VADEvent` carries the detection result: `SpeechStart`, `SpeechEnd`, or `SpeechContinue`, plus the speech probability score (0.0–1.0).
+
+**Candidate providers:** Silero VAD (default — sub-millisecond inference, language-agnostic, ONNX-based), WebRTC VAD (lighter but less accurate), cloud-based VAD (not recommended — adds network latency to a stage that must be instant).
+
+**Go library:** `streamer45/silero-vad-go` (wraps `yalue/onnxruntime_go`). Fallback: `plandem/silero-go`. Both require CGo and the ONNX Runtime shared library. See [Technology: CGo](07-technology.md#cgo-and-native-dependencies).
+
 ## Audio Platform Interface
 
 The audio platform abstraction isolates Glyphoxa from the specifics of Discord, WebRTC, or any future voice platform. It models audio as multiple named input streams (one per participant) and one or more output streams (NPC voices). All streams are Go channels carrying audio frames.
@@ -59,6 +91,17 @@ The audio platform abstraction isolates Glyphoxa from the specifics of Discord, 
 | `VoiceConn.OutputStream(voiceID string) chan<- AudioFrame` | Returns a writable audio channel for a specific NPC voice. Platform mixes multiple outputs. |
 | `VoiceConn.OnParticipantChange(cb func(Event))` | Lifecycle events for participants entering/leaving the voice session. |
 | `VoiceConn.Disconnect()` | Cleanly leaves the voice channel. |
+
+### Audio Mixer
+
+Discord limits a single bot to one outbound audio stream per guild. The `AudioMixer` serializes multiple NPC outputs through a priority queue. It sits between `VoiceEngine` outputs and the `VoiceConn` output stream. See [Architecture: Audio Mixing Layer](01-architecture.md#audio-mixing-layer) for the full design.
+
+| Method | Description |
+|---|---|
+| `Enqueue(segment AudioSegment, priority int)` | Adds an NPC audio segment to the output queue with a priority level. Higher priority segments play first. |
+| `Interrupt(reason InterruptReason)` | Truncates the currently playing segment and optionally clears the queue. Used for DM override and player barge-in. |
+| `OnBargeIn(handler func(speakerID UserID))` | Registers a callback for when a player speaks during NPC output. The mixer truncates playback and invokes the handler so the orchestrator can route the player's speech. |
+| `SetGap(duration time.Duration)` | Configures the silence gap between consecutive NPC segments (default 300ms ± 50ms jitter). |
 
 **Go library:** `bwmarrin/discordgo` (v0.29.0, 5.6k stars) — full voice support with Opus send/receive and per-user audio streams. Build a custom audio pipeline on top of discordgo's voice connection primitives (`dgvoice` is a proof-of-concept reference only). **Future targets:** custom WebRTC server via `pion/webrtc`, Mumble, browser-based sessions.
 
@@ -104,7 +147,7 @@ The S2S abstraction models providers that handle audio-in to audio-out in a sing
 | `Interrupt() error` | Interrupts the model's current speech output. |
 | `Close() error` | Closes the session and releases the WebSocket connection. |
 
-**Candidate providers:** OpenAI Realtime API (`gpt-realtime`, `gpt-4o-mini-realtime`), Google Gemini Live API (`gemini-2.5-flash-native-audio`).
+**Candidate providers:** OpenAI Realtime API (`gpt-realtime`, `gpt-realtime-mini`), Google Gemini Live API (`gemini-live-2.5-flash-native-audio`).
 
 **Go libraries:** `WqyJh/go-openai-realtime` for OpenAI Realtime (supports all client/server events, uses `coder/websocket` internally). For Gemini Live, a custom WebSocket client over `coder/websocket` — no Go SDK exists for the Live API.
 

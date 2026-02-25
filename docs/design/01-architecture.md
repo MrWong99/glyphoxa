@@ -14,7 +14,7 @@ Glyphoxa follows a layered architecture with strict separation between the audio
 | S2S Pipeline | Single-API audio-in/audio-out processing via OpenAI Realtime or Gemini Live. Used by `S2SEngine`. | `S2SProvider`, `S2SSession` |
 | Agent Orchestrator | Routes speech to the correct NPC agent, manages turn-taking, concurrent NPC conversations, DM commands, engine lifecycle, and tool budget enforcement | `AgentRouter`, `NPCAgent` |
 | LLM Core | Generates NPC dialogue, answers questions, processes tool calls. Provider-agnostic abstraction over multiple LLM backends. Used by `CascadedEngine`. | `LLMProvider`, `CompletionRequest` |
-| Memory Subsystem | Three-layer hybrid: hot layer (pre-woven identity + recent transcript), cold layer (MCP-invocable deep search), knowledge graph | `MemoryStore`, `KnowledgeGraph`, `HotContext` |
+| Memory Subsystem | Three-layer hybrid: hot layer (pre-woven identity + recent transcript), cold layer (MCP-invocable deep search), knowledge graph | `MemoryStore`, `KnowledgeGraph`, `EmbeddingsProvider`, `HotContext` |
 | Tool Execution (MCP) | Performance-budgeted tool registry. Tools declare latency estimates. Orchestrator controls which tools are visible per engine via budget tiers. | `MCPHost`, `MCPTool`, `ToolBudget` |
 
 ## High-Level Data Flow
@@ -67,6 +67,31 @@ S2S audio is played through the Audio Transport's output stream, identical to st
 
 ### 9. Memory Write-back (shared)
 The complete exchange (player utterance + NPC response) is written to the session transcript (L1). A background goroutine runs the [transcript correction pipeline](03-memory.md#transcript-correction-pipeline) (phonetic match + LLM correction for misheard entity names) and then queues entity extraction for the knowledge graph (L3). Both engine types emit transcript entries through the same `Transcripts()` channel — the memory system does not distinguish between them, though S2S transcripts receive more aggressive correction since they lack keyword boosting and word-level confidence data.
+
+## Audio Mixing Layer
+
+Discord limits a single bot to one outbound audio stream per guild. When multiple NPCs need to speak (e.g., a tavern scene with three NPCs), Glyphoxa must serialize their output through a priority queue.
+
+### Output Queue
+
+The Audio Mixer sits between the VoiceEngine outputs and the Audio Transport's single output stream. It manages:
+
+| Concern | Approach |
+|---|---|
+| **Queueing** | Each NPC's audio output is enqueued as a speech segment. The mixer plays segments sequentially — one NPC finishes before the next begins. |
+| **Priority** | The DM's designated NPC (e.g., "the quest giver is speaking") gets priority. Otherwise, priority is based on: (1) directly addressed NPCs first, (2) conversation relevance score, (3) FIFO order. |
+| **Interruption** | The DM can interrupt any NPC mid-speech via voice command or `/npc mute`. The current segment is truncated and the next queued segment plays. Player speech also interrupts NPC output (barge-in). |
+| **Natural pacing** | A configurable silence gap (200–500ms) is inserted between NPC segments to simulate natural turn-taking. A small random jitter (±50ms) prevents robotic timing. |
+| **Mixing (future)** | If multi-bot support is added (one bot per NPC), true PCM mixing replaces the queue. Audio frames from concurrent bots are summed and clipped. This path is deferred — single-bot sequential output is the MVP. |
+
+### Barge-in Detection
+
+When a player starts speaking while an NPC is still outputting audio, the mixer triggers a barge-in:
+
+1. VAD detects player speech on an input stream.
+2. The mixer truncates the current NPC's output segment.
+3. The player's speech is routed to the addressed NPC's VoiceEngine for processing.
+4. Any queued NPC segments are discarded (the conversation context has changed).
 
 ## Streaming is Non-Negotiable
 

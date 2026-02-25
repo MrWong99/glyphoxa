@@ -79,7 +79,7 @@ go build ./cmd/glyphoxa
 | **LLM (fast)** | GPT-4o-mini | Gemini 2.5 Flash | Ollama + Llama 3.x |
 | **LLM (strong)** | Claude Sonnet | GPT-4o | Ollama + Llama 3.1 70B |
 | **TTS** | ElevenLabs Flash v2.5 | Cartesia Sonic | Coqui XTTS |
-| **S2S** | Gemini Live (Flash native audio) | OpenAI Realtime (gpt-4o-mini) | — |
+| **S2S** | Gemini Live (`gemini-live-2.5-flash-native-audio`) | OpenAI Realtime (`gpt-realtime-mini`) | — |
 | **Embeddings** | OpenAI text-embedding-3-small | Voyage AI | nomic-embed-text |
 | **Audio** | Discord (discordgo) | — | WebRTC (Pion) |
 
