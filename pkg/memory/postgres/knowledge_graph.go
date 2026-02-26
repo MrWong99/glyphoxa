@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	pgvector "github.com/pgvector/pgvector-go"
 
 	"github.com/MrWong99/glyphoxa/pkg/memory"
 )
@@ -512,6 +513,82 @@ func (s *Store) QueryWithContext(ctx context.Context, query string, graphScope [
 	})
 	if err != nil {
 		return nil, fmt.Errorf("knowledge graph: query with context: scan: %w", err)
+	}
+	if results == nil {
+		results = []memory.ContextResult{}
+	}
+	return results, nil
+}
+
+// QueryWithEmbedding implements [memory.GraphRAGQuerier]. It performs a
+// graph-augmented retrieval query using pgvector cosine similarity — the true
+// GraphRAG path. Chunks whose embeddings are closest (cosine distance) to the
+// query embedding are returned, optionally scoped to a set of entity IDs.
+//
+// Results are ranked by ascending cosine distance (most similar first). The
+// Score field is set to 1 - distance so higher scores indicate better matches,
+// consistent with [Store.QueryWithContext].
+//
+// topK limits the number of results. An empty graphScope searches all chunks.
+func (s *Store) QueryWithEmbedding(ctx context.Context, embedding []float32, topK int, graphScope []string) ([]memory.ContextResult, error) {
+	queryVec := pgvector.NewVector(embedding)
+
+	args := []any{queryVec} // $1 = query embedding vector
+	next := func(v any) string {
+		args = append(args, v)
+		return fmt.Sprintf("$%d", len(args))
+	}
+
+	scopeFilter := ""
+	if len(graphScope) > 0 {
+		scopeFilter = "\n  AND  c.npc_id = ANY(" + next(graphScope) + "::text[])"
+	}
+
+	args = append(args, topK)
+	limitArg := fmt.Sprintf("$%d", len(args))
+
+	q := fmt.Sprintf(`
+		SELECT e.id, e.type, e.name, e.attributes, e.created_at, e.updated_at,
+		       c.content,
+		       c.embedding <=> $1 AS distance
+		FROM   chunks  c
+		JOIN   entities e ON e.id = c.npc_id
+		WHERE  c.embedding IS NOT NULL%s
+		ORDER  BY distance
+		LIMIT  %s`, scopeFilter, limitArg)
+
+	rows, err := s.pool.Query(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("knowledge graph: query with embedding: %w", err)
+	}
+
+	results, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (memory.ContextResult, error) {
+		var (
+			cr        memory.ContextResult
+			attrsJSON []byte
+			distance  float64
+		)
+		if err := row.Scan(
+			&cr.Entity.ID,
+			&cr.Entity.Type,
+			&cr.Entity.Name,
+			&attrsJSON,
+			&cr.Entity.CreatedAt,
+			&cr.Entity.UpdatedAt,
+			&cr.Content,
+			&distance,
+		); err != nil {
+			return memory.ContextResult{}, err
+		}
+		if err := json.Unmarshal(attrsJSON, &cr.Entity.Attributes); err != nil {
+			return memory.ContextResult{}, fmt.Errorf("unmarshal entity attributes: %w", err)
+		}
+		// Convert distance (lower = better) to score (higher = better).
+		cr.Score = 1.0 - distance
+		return cr, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("knowledge graph: query with embedding: scan: %w", err)
 	}
 	if results == nil {
 		results = []memory.ContextResult{}

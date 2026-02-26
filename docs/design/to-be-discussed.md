@@ -4,21 +4,11 @@ Issues found during Phase 2 implementation that warrant design-level discussion 
 
 ---
 
-## 1. `GraphRAGQuerier.QueryWithContext` — FTS vs Vector Similarity
+## 1. ~~`GraphRAGQuerier.QueryWithContext` — FTS vs Vector Similarity~~ ✅ RESOLVED
 
-**Design says:** GraphRAG should combine graph traversal (L3) with **pgvector** cosine similarity (L2) in a single SQL query. The example SQL uses `embedding <=> $2 AS distance`.
+**Decision:** Option 3 — dual methods. `QueryWithContext` uses FTS (no embedding needed), `QueryWithEmbedding` uses pgvector cosine similarity (true GraphRAG).
 
-**Implementation does:** Full-text search (`ts_rank` + `plainto_tsquery`) instead of vector similarity, because `QueryWithContext` accepts `query string` — not a pre-computed embedding vector.
-
-**The problem:** To do proper vector similarity, someone needs to convert the text query into an embedding first. The current `QueryWithContext(ctx, query string, graphScope []string)` signature doesn't provide that capability.
-
-**Options:**
-1. **Change the signature** to `QueryWithContext(ctx, embedding []float32, graphScope []string)` — caller is responsible for embedding. Cleaner separation but pushes work upstream.
-2. **Inject an `embeddings.Provider`** into the postgres Store so it can embed internally. Couples the store to an embedding provider.
-3. **Add a second method** — keep FTS-based `QueryWithContext` as a fallback and add `QueryWithEmbedding(ctx, embedding []float32, graphScope []string)` for true GraphRAG.
-4. **Keep FTS for now** — Phase 2 roadmap says "GraphRAG combined query" but the FTS approach is pragmatic and works without an embeddings provider. Upgrade to vector search later.
-
-**Recommendation:** Option 3 — dual methods. FTS is a useful fallback when no embedding is available (e.g., during entity extraction where you have a text query but no embedding budget).
+Implemented in the `GraphRAGQuerier` interface and postgres backend. FTS remains useful as a fallback when no embedding is available (e.g., entity extraction, budget-constrained contexts).
 
 ---
 

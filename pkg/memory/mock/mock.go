@@ -428,3 +428,50 @@ func (m *KnowledgeGraph) IdentitySnapshot(_ context.Context, npcID string) (*mem
 
 // Ensure KnowledgeGraph satisfies the interface at compile time.
 var _ memory.KnowledgeGraph = (*KnowledgeGraph)(nil)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GraphRAGQuerier mock (extends KnowledgeGraph)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GraphRAGQuerier is a configurable test double for [memory.GraphRAGQuerier].
+// It embeds [KnowledgeGraph] and adds the two GraphRAG query methods.
+type GraphRAGQuerier struct {
+	KnowledgeGraph
+
+	// ──── QueryWithContext ─────────────────────────────────────────────────
+	QueryWithContextResult []memory.ContextResult
+	QueryWithContextErr    error
+
+	// ──── QueryWithEmbedding ──────────────────────────────────────────────
+	QueryWithEmbeddingResult []memory.ContextResult
+	QueryWithEmbeddingErr    error
+}
+
+// QueryWithContext implements [memory.GraphRAGQuerier].
+func (m *GraphRAGQuerier) QueryWithContext(_ context.Context, query string, graphScope []string) ([]memory.ContextResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls = append(m.calls, Call{Method: "QueryWithContext", Args: []any{query, graphScope}})
+	if m.QueryWithContextResult == nil {
+		return []memory.ContextResult{}, m.QueryWithContextErr
+	}
+	out := make([]memory.ContextResult, len(m.QueryWithContextResult))
+	copy(out, m.QueryWithContextResult)
+	return out, m.QueryWithContextErr
+}
+
+// QueryWithEmbedding implements [memory.GraphRAGQuerier].
+func (m *GraphRAGQuerier) QueryWithEmbedding(_ context.Context, embedding []float32, topK int, graphScope []string) ([]memory.ContextResult, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls = append(m.calls, Call{Method: "QueryWithEmbedding", Args: []any{embedding, topK, graphScope}})
+	if m.QueryWithEmbeddingResult == nil {
+		return []memory.ContextResult{}, m.QueryWithEmbeddingErr
+	}
+	out := make([]memory.ContextResult, len(m.QueryWithEmbeddingResult))
+	copy(out, m.QueryWithEmbeddingResult)
+	return out, m.QueryWithEmbeddingErr
+}
+
+// Ensure GraphRAGQuerier satisfies the interface at compile time.
+var _ memory.GraphRAGQuerier = (*GraphRAGQuerier)(nil)

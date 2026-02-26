@@ -436,15 +436,40 @@ type KnowledgeGraph interface {
 // GraphRAGQuerier extends [KnowledgeGraph] with graph-augmented retrieval
 // (GraphRAG). It combines structured graph traversal with semantic text
 // retrieval to produce contextually grounded results for LLM consumption.
+//
+// Two query methods are provided:
+//   - [GraphRAGQuerier.QueryWithContext] uses full-text search (FTS) and
+//     requires no embedding provider. Useful as a fallback when embeddings
+//     are unavailable or during entity extraction where embedding budget is
+//     limited.
+//   - [GraphRAGQuerier.QueryWithEmbedding] uses pgvector cosine similarity
+//     against pre-computed chunk embeddings. This is the true GraphRAG path
+//     described in the design docs and produces higher-quality results when
+//     an embedding provider is available.
 type GraphRAGQuerier interface {
 	KnowledgeGraph
 
-	// QueryWithContext performs a GraphRAG query: it identifies relevant graph
-	// entities from the query string, traverses their neighbourhood restricted
-	// to graphScope entity IDs, and retrieves associated text passages.
-	// Results are ranked by a combined graph-proximity / semantic-similarity score.
+	// QueryWithContext performs a GraphRAG query using full-text search (FTS):
+	// it matches the query string against chunk content using PostgreSQL
+	// plainto_tsquery, scoped to entities in graphScope.
+	// Results are ranked by FTS relevance (ts_rank).
 	//
-	// graphScope limits traversal to entities whose IDs appear in the list.
-	// An empty graphScope searches the full graph.
+	// graphScope limits results to chunks whose entity association is in the
+	// list. An empty graphScope searches all chunks.
+	//
+	// Use this when no embedding vector is available. For higher-quality
+	// semantic retrieval, prefer [GraphRAGQuerier.QueryWithEmbedding].
 	QueryWithContext(ctx context.Context, query string, graphScope []string) ([]ContextResult, error)
+
+	// QueryWithEmbedding performs a GraphRAG query using vector similarity:
+	// it finds the topK chunks whose embeddings are closest (cosine distance)
+	// to the provided query embedding, scoped to entities in graphScope.
+	// Results are ranked by ascending cosine distance (most similar first).
+	//
+	// graphScope limits results to chunks whose entity association is in the
+	// list. An empty graphScope searches all chunks.
+	//
+	// The embedding must match the dimensionality of stored chunk embeddings.
+	// topK controls the maximum number of results returned.
+	QueryWithEmbedding(ctx context.Context, embedding []float32, topK int, graphScope []string) ([]ContextResult, error)
 }
