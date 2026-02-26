@@ -20,7 +20,10 @@ package engine
 import (
 	"context"
 
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/internal/mcp"
+	"github.com/MrWong99/glyphoxa/pkg/audio"
+	"github.com/MrWong99/glyphoxa/pkg/memory"
+	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 )
 
 // PromptContext bundles everything the VoiceEngine needs to build the LLM prompt
@@ -42,11 +45,11 @@ type PromptContext struct {
 
 	// Messages is the recent conversation history. The engine may truncate or
 	// summarise this list to stay within the model's context window.
-	Messages []types.Message
+	Messages []llm.Message
 
 	// BudgetTier controls which tools are offered to the LLM based on latency
-	// constraints. See [types.BudgetTier] for tier definitions.
-	BudgetTier types.BudgetTier
+	// constraints. See [mcp.BudgetTier] for tier definitions.
+	BudgetTier mcp.BudgetTier
 }
 
 // ContextUpdate carries a mid-session context refresh pushed via
@@ -63,7 +66,7 @@ type ContextUpdate struct {
 
 	// RecentUtterances are the latest transcript entries to append to the
 	// engine's conversation history before the next process call.
-	RecentUtterances []types.TranscriptEntry
+	RecentUtterances []memory.TranscriptEntry
 }
 
 // Response is the result of a successful [VoiceEngine.Process] call.
@@ -81,7 +84,7 @@ type Response struct {
 	// ToolCalls lists any tool invocations the LLM requested during generation.
 	// The orchestrator is responsible for executing them and, if needed, feeding
 	// results back to the engine via a follow-up [VoiceEngine.Process] call.
-	ToolCalls []types.ToolCall
+	ToolCalls []llm.ToolCall
 }
 
 // VoiceEngine handles the complete speech-in / speech-out pipeline for one NPC.
@@ -105,7 +108,7 @@ type VoiceEngine interface {
 	//
 	// An error is returned if any pipeline stage fails unrecoverably. Transient
 	// errors (e.g., a single dropped packet) are handled internally.
-	Process(ctx context.Context, input types.AudioFrame, prompt PromptContext) (*Response, error)
+	Process(ctx context.Context, input audio.AudioFrame, prompt PromptContext) (*Response, error)
 
 	// InjectContext pushes an out-of-band context update into the running session.
 	// The engine merges update into its state and applies it on the next call to
@@ -116,7 +119,7 @@ type VoiceEngine interface {
 	// SetTools replaces the full set of tools offered to the LLM. The new list
 	// takes effect on the next [VoiceEngine.Process] call. Pass a nil or empty
 	// slice to disable tool calling.
-	SetTools(tools []types.ToolDefinition) error
+	SetTools(tools []llm.ToolDefinition) error
 
 	// OnToolCall registers handler as the synchronous executor for LLM tool calls.
 	// When the LLM requests a tool during [VoiceEngine.Process], the engine calls
@@ -129,9 +132,9 @@ type VoiceEngine interface {
 	OnToolCall(handler func(name string, args string) (string, error))
 
 	// Transcripts returns a read-only channel on which the engine publishes
-	// [types.TranscriptEntry] values — one for each final STT result and one
+	// [memory.TranscriptEntry] values — one for each final STT result and one
 	// for each NPC response. The channel is closed when the engine is closed.
-	Transcripts() <-chan types.TranscriptEntry
+	Transcripts() <-chan memory.TranscriptEntry
 
 	// Close releases all resources held by the engine (connections, goroutines,
 	// TTS synthesis streams). It closes the [Transcripts] channel and is safe to

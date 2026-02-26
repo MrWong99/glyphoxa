@@ -14,7 +14,6 @@ import (
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
 	"github.com/MrWong99/glyphoxa/pkg/provider/vad"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -378,8 +377,8 @@ func (s *stubLLM) StreamCompletion(_ context.Context, _ llm.CompletionRequest) (
 func (s *stubLLM) Complete(_ context.Context, _ llm.CompletionRequest) (*llm.CompletionResponse, error) {
 	return &llm.CompletionResponse{}, nil
 }
-func (s *stubLLM) CountTokens(_ []types.Message) (int, error) { return 0, nil }
-func (s *stubLLM) Capabilities() types.ModelCapabilities      { return types.ModelCapabilities{} }
+func (s *stubLLM) CountTokens(_ []llm.Message) (int, error) { return 0, nil }
+func (s *stubLLM) Capabilities() llm.ModelCapabilities      { return llm.ModelCapabilities{} }
 
 // stubSTT implements stt.Provider.
 type stubSTT struct{}
@@ -391,13 +390,13 @@ func (s *stubSTT) StartStream(_ context.Context, _ stt.StreamConfig) (stt.Sessio
 // stubTTS implements tts.Provider.
 type stubTTS struct{}
 
-func (s *stubTTS) SynthesizeStream(_ context.Context, _ <-chan string, _ types.VoiceProfile) (<-chan []byte, error) {
+func (s *stubTTS) SynthesizeStream(_ context.Context, _ <-chan string, _ tts.VoiceProfile) (<-chan []byte, error) {
 	ch := make(chan []byte)
 	close(ch)
 	return ch, nil
 }
-func (s *stubTTS) ListVoices(_ context.Context) ([]types.VoiceProfile, error) { return nil, nil }
-func (s *stubTTS) CloneVoice(_ context.Context, _ [][]byte) (*types.VoiceProfile, error) {
+func (s *stubTTS) ListVoices(_ context.Context) ([]tts.VoiceProfile, error) { return nil, nil }
+func (s *stubTTS) CloneVoice(_ context.Context, _ [][]byte) (*tts.VoiceProfile, error) {
 	return nil, nil
 }
 

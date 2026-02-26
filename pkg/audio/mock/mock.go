@@ -7,10 +7,10 @@
 //
 // Typical usage:
 //
-//	out := make(chan types.AudioFrame, 16)
+//	out := make(chan audio.AudioFrame, 16)
 //	conn := &mock.Connection{
-//	    InputStreamsResult: map[string]<-chan types.AudioFrame{
-//	        "user-1": make(chan types.AudioFrame),
+//	    InputStreamsResult: map[string]<-chan audio.AudioFrame{
+//	        "user-1": make(chan audio.AudioFrame),
 //	    },
 //	    OutputStreamResult: out,
 //	}
@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/MrWong99/glyphoxa/pkg/audio"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // ─── Connection ───────────────────────────────────────────────────────────────
@@ -36,10 +35,10 @@ type Connection struct {
 
 	// InputStreamsResult is returned by [Connection.InputStreams].
 	// Defaults to an empty (non-nil) map if left nil.
-	InputStreamsResult map[string]<-chan types.AudioFrame
+	InputStreamsResult map[string]<-chan audio.AudioFrame
 
 	// OutputStreamResult is returned by [Connection.OutputStream].
-	OutputStreamResult chan<- types.AudioFrame
+	OutputStreamResult chan<- audio.AudioFrame
 
 	// DisconnectError is returned by [Connection.Disconnect].
 	DisconnectError error
@@ -63,18 +62,18 @@ type Connection struct {
 
 // InputStreams implements [audio.Connection]. Returns InputStreamsResult.
 // If InputStreamsResult is nil, an empty non-nil map is returned.
-func (c *Connection) InputStreams() map[string]<-chan types.AudioFrame {
+func (c *Connection) InputStreams() map[string]<-chan audio.AudioFrame {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.CallCountInputStreams++
 	if c.InputStreamsResult == nil {
-		return map[string]<-chan types.AudioFrame{}
+		return map[string]<-chan audio.AudioFrame{}
 	}
 	return c.InputStreamsResult
 }
 
 // OutputStream implements [audio.Connection]. Returns OutputStreamResult.
-func (c *Connection) OutputStream() chan<- types.AudioFrame {
+func (c *Connection) OutputStream() chan<- audio.AudioFrame {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.CallCountOutputStream++

@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 )
 
 // Router determines which NPC was addressed by a player's utterance and
@@ -27,7 +27,7 @@ type Router interface {
 	// Route must not modify the transcript or attempt to process the utterance
 	// itself; that is the responsibility of the returned agent's
 	// [NPCAgent.HandleUtterance] method.
-	Route(ctx context.Context, speaker string, transcript types.Transcript) (NPCAgent, error)
+	Route(ctx context.Context, speaker string, transcript stt.Transcript) (NPCAgent, error)
 
 	// ActiveAgents returns a snapshot of all NPC agents currently managed by
 	// this router, including both muted and unmuted agents. The returned slice

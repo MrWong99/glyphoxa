@@ -18,7 +18,6 @@ import (
 	"sync"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // StreamCall records a single invocation of StreamCompletion.
@@ -40,7 +39,7 @@ type CompleteCall struct {
 // CountTokensCall records a single invocation of CountTokens.
 type CountTokensCall struct {
 	// Messages is the slice passed to CountTokens.
-	Messages []types.Message
+	Messages []llm.Message
 }
 
 // Provider is a mock implementation of llm.Provider.
@@ -72,7 +71,7 @@ type Provider struct {
 	CountTokensErr error
 
 	// ModelCapabilities is returned by Capabilities.
-	ModelCapabilities types.ModelCapabilities
+	ModelCapabilities llm.ModelCapabilities
 
 	// --- Call records (read after test) ---
 
@@ -127,17 +126,17 @@ func (p *Provider) Complete(ctx context.Context, req llm.CompletionRequest) (*ll
 }
 
 // CountTokens records the call and returns TokenCount, CountTokensErr.
-func (p *Provider) CountTokens(messages []types.Message) (int, error) {
+func (p *Provider) CountTokens(messages []llm.Message) (int, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	msgs := make([]types.Message, len(messages))
+	msgs := make([]llm.Message, len(messages))
 	copy(msgs, messages)
 	p.CountTokensCalls = append(p.CountTokensCalls, CountTokensCall{Messages: msgs})
 	return p.TokenCount, p.CountTokensErr
 }
 
 // Capabilities records the call and returns ModelCapabilities.
-func (p *Provider) Capabilities() types.ModelCapabilities {
+func (p *Provider) Capabilities() llm.ModelCapabilities {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.CapabilitiesCallCount++

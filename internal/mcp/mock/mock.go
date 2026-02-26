@@ -7,7 +7,7 @@
 // Typical usage:
 //
 //	h := &mock.Host{}
-//	h.AvailableToolsResult = []types.ToolDefinition{{Name: "lookup_npc"}}
+//	h.AvailableToolsResult = []llm.ToolDefinition{{Name: "lookup_npc"}}
 //	h.ExecuteToolResult = &mcp.ToolResult{Content: `{"name":"Eldrinax"}`}
 //
 //	// inject h into the system under test …
@@ -22,7 +22,7 @@ import (
 	"sync"
 
 	"github.com/MrWong99/glyphoxa/internal/mcp"
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 )
 
 // Call records the name and arguments of a single method invocation.
@@ -52,7 +52,7 @@ type Host struct {
 
 	// AvailableToolsResult is returned by [Host.AvailableTools].
 	// When nil, AvailableTools returns an empty non-nil slice.
-	AvailableToolsResult []types.ToolDefinition
+	AvailableToolsResult []llm.ToolDefinition
 
 	// ──── ExecuteTool ──────────────────────────────────────────────────────
 
@@ -114,14 +114,14 @@ func (h *Host) RegisterServer(_ context.Context, cfg mcp.ServerConfig) error {
 }
 
 // AvailableTools implements [mcp.Host].
-func (h *Host) AvailableTools(tier types.BudgetTier) []types.ToolDefinition {
+func (h *Host) AvailableTools(tier mcp.BudgetTier) []llm.ToolDefinition {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.calls = append(h.calls, Call{Method: "AvailableTools", Args: []any{tier}})
 	if h.AvailableToolsResult == nil {
-		return []types.ToolDefinition{}
+		return []llm.ToolDefinition{}
 	}
-	out := make([]types.ToolDefinition, len(h.AvailableToolsResult))
+	out := make([]llm.ToolDefinition, len(h.AvailableToolsResult))
 	copy(out, h.AvailableToolsResult)
 	return out
 }

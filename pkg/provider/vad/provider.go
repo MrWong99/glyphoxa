@@ -13,8 +13,6 @@
 // implementation explicitly documents thread safety for that type.
 package vad
 
-import "github.com/MrWong99/glyphoxa/pkg/types"
-
 // Config holds the parameters for a VAD session. All numeric thresholds are
 // expressed in the model's native scale; see each Engine's documentation for
 // recommended starting values.
@@ -55,7 +53,7 @@ type SessionHandle interface {
 	//
 	// This method is designed to be called synchronously in the audio pipeline loop;
 	// it must not block.
-	ProcessFrame(frame []byte) (types.VADEvent, error)
+	ProcessFrame(frame []byte) (VADEvent, error)
 
 	// Reset clears all accumulated detection state (ring buffers, speech-start
 	// counters) without closing the session. Use this when the audio stream is

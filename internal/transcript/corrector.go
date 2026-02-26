@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/MrWong99/glyphoxa/internal/transcript/llmcorrect"
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 )
 
 const (
@@ -35,7 +35,7 @@ func WithLLMCorrector(c *llmcorrect.Corrector) PipelineOption {
 // word is flagged as a low-confidence span and passed to the LLM corrector
 // (when one is configured). Default: 0.5.
 //
-// Words with [types.WordDetail.Confidence] below this value that were NOT
+// Words with [stt.WordDetail.Confidence] below this value that were NOT
 // already corrected by the phonetic stage are submitted to the LLM for review.
 // Words without any confidence data (i.e., the transcript has no Words slice)
 // are always submitted when the LLM corrector is configured.
@@ -82,7 +82,7 @@ func NewPipeline(opts ...PipelineOption) *CorrectionPipeline {
 //  2. When a [PhoneticMatcher] is configured, every single-word token is tested
 //     against the entity list. Additionally, n-gram windows (up to the maximum
 //     entity word count) are tested to match multi-word entities.
-//  3. Words that carry a [types.WordDetail] confidence score below the LLM
+//  3. Words that carry a [stt.WordDetail] confidence score below the LLM
 //     threshold AND were not corrected by the phonetic stage are collected as
 //     low-confidence spans.
 //  4. When an [llmcorrect.Corrector] is configured and at least one
@@ -95,7 +95,7 @@ func NewPipeline(opts ...PipelineOption) *CorrectionPipeline {
 // completes, an error is returned.
 func (p *CorrectionPipeline) Correct(
 	ctx context.Context,
-	t types.Transcript,
+	t stt.Transcript,
 	entities []string,
 ) (*CorrectedTranscript, error) {
 	result := &CorrectedTranscript{
@@ -170,7 +170,7 @@ func (p *CorrectionPipeline) Correct(
 //     cursor by the number of tokens consumed.
 func (p *CorrectionPipeline) applyPhonetic(
 	text string,
-	wordDetails []types.WordDetail,
+	wordDetails []stt.WordDetail,
 	entities []string,
 ) (string, []Correction) {
 	tokens := strings.Fields(text)
@@ -229,7 +229,7 @@ func (p *CorrectionPipeline) applyPhonetic(
 // the configured threshold and that were not already corrected by the phonetic
 // stage.
 func (p *CorrectionPipeline) collectLowConfidenceSpans(
-	wordDetails []types.WordDetail,
+	wordDetails []stt.WordDetail,
 	alreadyCorrected map[string]struct{},
 ) []string {
 	var spans []string

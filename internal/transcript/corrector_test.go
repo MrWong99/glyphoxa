@@ -10,7 +10,7 @@ import (
 	"github.com/MrWong99/glyphoxa/internal/transcript/phonetic"
 	llm "github.com/MrWong99/glyphoxa/pkg/provider/llm"
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm/mock"
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 )
 
 // makeMockLLM creates a mock LLM provider that returns the given corrected text.
@@ -22,8 +22,8 @@ func makeMockLLM(correctedText string) *mock.Provider {
 	}
 }
 
-func makeTranscript(text string, words ...types.WordDetail) types.Transcript {
-	return types.Transcript{
+func makeTranscript(text string, words ...stt.WordDetail) stt.Transcript {
+	return stt.Transcript{
 		Text:      text,
 		IsFinal:   true,
 		Confidence: 0.85,
@@ -49,7 +49,7 @@ func TestCorrectionPipeline_BothStages(t *testing.T) {
 	)
 
 	// Low-confidence word detail to trigger LLM stage.
-	wordDetails := []types.WordDetail{
+	wordDetails := []stt.WordDetail{
 		{Word: "elder", Start: 0, End: time.Second, Confidence: 0.3},
 		{Word: "nacks", Start: time.Second, End: 2 * time.Second, Confidence: 0.25},
 		{Word: "lives", Start: 2 * time.Second, End: 3 * time.Second, Confidence: 0.9},
@@ -168,7 +168,7 @@ func TestCorrectionPipeline_LowConfidenceFiltering(t *testing.T) {
 	)
 
 	// All words above threshold → LLM should NOT be called.
-	wordDetails := []types.WordDetail{
+	wordDetails := []stt.WordDetail{
 		{Word: "eldrinax", Confidence: 0.95},
 		{Word: "speaks", Confidence: 0.98},
 		{Word: "wisdom", Confidence: 0.92},
@@ -201,7 +201,7 @@ func TestCorrectionPipeline_LLMRunsOnLowConfidence(t *testing.T) {
 	)
 
 	// One word below threshold → LLM should be called.
-	wordDetails := []types.WordDetail{
+	wordDetails := []stt.WordDetail{
 		{Word: "eldrinaks", Confidence: 0.2}, // low confidence
 		{Word: "speaks", Confidence: 0.98},
 		{Word: "wisdom", Confidence: 0.92},

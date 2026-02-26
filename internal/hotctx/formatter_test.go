@@ -7,7 +7,6 @@ import (
 
 	"github.com/MrWong99/glyphoxa/internal/hotctx"
 	"github.com/MrWong99/glyphoxa/pkg/memory"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,7 +64,7 @@ func fullHotContext() *hotctx.HotContext {
 			PresentNPCs: []memory.Entity{friendEntity},
 			ActiveQuests: []memory.Entity{questEntity},
 		},
-		RecentTranscript: []types.TranscriptEntry{
+		RecentTranscript: []memory.TranscriptEntry{
 			{
 				SpeakerID:   "player1",
 				SpeakerName: "Alice",

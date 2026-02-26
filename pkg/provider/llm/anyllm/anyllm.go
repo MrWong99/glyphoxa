@@ -25,7 +25,6 @@ import (
 	anyllmoai "github.com/mozilla-ai/any-llm-go/providers/openai"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // Provider implements llm.Provider by wrapping github.com/mozilla-ai/any-llm-go.
@@ -151,7 +150,7 @@ func (p *Provider) StreamCompletion(ctx context.Context, req llm.CompletionReque
 		defer close(ch)
 
 		// Accumulated tool calls keyed by index.
-		toolCallAccum := map[int]*types.ToolCall{}
+		toolCallAccum := map[int]*llm.ToolCall{}
 
 		for chunk := range backendChunks {
 			if len(chunk.Choices) == 0 {
@@ -168,7 +167,7 @@ func (p *Provider) StreamCompletion(ctx context.Context, req llm.CompletionReque
 			// Accumulate tool call fragments by index within this chunk.
 			for i, tc := range delta.ToolCalls {
 				if _, ok := toolCallAccum[i]; !ok {
-					toolCallAccum[i] = &types.ToolCall{
+					toolCallAccum[i] = &llm.ToolCall{
 						ID:   tc.ID,
 						Name: tc.Function.Name,
 					}
@@ -236,7 +235,7 @@ func (p *Provider) Complete(ctx context.Context, req llm.CompletionRequest) (*ll
 		}
 	}
 	for _, tc := range choice.Message.ToolCalls {
-		result.ToolCalls = append(result.ToolCalls, types.ToolCall{
+		result.ToolCalls = append(result.ToolCalls, llm.ToolCall{
 			ID:        tc.ID,
 			Name:      tc.Function.Name,
 			Arguments: tc.Function.Arguments,
@@ -247,7 +246,7 @@ func (p *Provider) Complete(ctx context.Context, req llm.CompletionRequest) (*ll
 
 // CountTokens implements llm.Provider.
 // TODO: replace with a real tokenizer (e.g., tiktoken-go) for accurate per-model counting.
-func (p *Provider) CountTokens(messages []types.Message) (int, error) {
+func (p *Provider) CountTokens(messages []llm.Message) (int, error) {
 	total := 0
 	for _, m := range messages {
 		// ~4 chars per token is a rough approximation for most models.
@@ -259,7 +258,7 @@ func (p *Provider) CountTokens(messages []types.Message) (int, error) {
 }
 
 // Capabilities implements llm.Provider.
-func (p *Provider) Capabilities() types.ModelCapabilities {
+func (p *Provider) Capabilities() llm.ModelCapabilities {
 	return modelCapabilities(p.model)
 }
 
@@ -306,8 +305,8 @@ func (p *Provider) buildParams(req llm.CompletionRequest) anyllmlib.CompletionPa
 	return params
 }
 
-// convertMessage converts our types.Message to anyllm.Message.
-func convertMessage(m types.Message) anyllmlib.Message {
+// convertMessage converts our llm.Message to anyllm.Message.
+func convertMessage(m llm.Message) anyllmlib.Message {
 	msg := anyllmlib.Message{
 		Role:       m.Role,
 		Content:    m.Content,
@@ -332,9 +331,9 @@ func convertMessage(m types.Message) anyllmlib.Message {
 // modelCapabilities returns ModelCapabilities based on known model names.
 // This covers OpenAI, Anthropic, and Gemini model families.
 // Unknown models receive sensible defaults.
-func modelCapabilities(model string) types.ModelCapabilities {
+func modelCapabilities(model string) llm.ModelCapabilities {
 	// Sensible defaults for unknown models.
-	caps := types.ModelCapabilities{
+	caps := llm.ModelCapabilities{
 		SupportsToolCalling: true,
 		SupportsStreaming:   true,
 		SupportsVision:      false,

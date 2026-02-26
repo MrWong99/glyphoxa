@@ -13,7 +13,6 @@ import (
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt/whisper"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // ---- helpers ----------------------------------------------------------------
@@ -166,7 +165,7 @@ func TestSetKeywords_ReturnsError(t *testing.T) {
 	h := mustStartStream(t, p, stt.StreamConfig{SampleRate: 16000, Channels: 1})
 	defer h.Close()
 
-	err := h.SetKeywords([]types.KeywordBoost{{Keyword: "Eldrinax", Boost: 5}})
+	err := h.SetKeywords([]stt.KeywordBoost{{Keyword: "Eldrinax", Boost: 5}})
 	if err == nil {
 		t.Fatal("expected error from SetKeywords, got nil")
 	}

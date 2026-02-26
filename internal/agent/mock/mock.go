@@ -22,7 +22,7 @@ import (
 
 	"github.com/MrWong99/glyphoxa/internal/agent"
 	"github.com/MrWong99/glyphoxa/internal/engine"
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 )
 
 // ─── NPCAgent ─────────────────────────────────────────────────────────────────
@@ -32,7 +32,7 @@ type HandleUtteranceCall struct {
 	// Speaker is the platform participant ID of the player who spoke.
 	Speaker string
 	// Transcript is the STT result passed to HandleUtterance.
-	Transcript types.Transcript
+	Transcript stt.Transcript
 }
 
 // UpdateSceneCall records the arguments of a single [NPCAgent.UpdateScene] invocation.
@@ -115,7 +115,7 @@ func (n *NPCAgent) Engine() engine.VoiceEngine {
 }
 
 // HandleUtterance implements [agent.NPCAgent]. Records the call and returns HandleUtteranceError.
-func (n *NPCAgent) HandleUtterance(_ context.Context, speaker string, transcript types.Transcript) error {
+func (n *NPCAgent) HandleUtterance(_ context.Context, speaker string, transcript stt.Transcript) error {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	n.HandleUtteranceCalls = append(n.HandleUtteranceCalls, HandleUtteranceCall{
@@ -140,7 +140,7 @@ type RouteCall struct {
 	// Speaker is the platform participant ID of the player who spoke.
 	Speaker string
 	// Transcript is the STT result passed to Route.
-	Transcript types.Transcript
+	Transcript stt.Transcript
 }
 
 // Router is a mock implementation of [agent.Router].
@@ -177,7 +177,7 @@ type Router struct {
 }
 
 // Route implements [agent.Router]. Records the call and returns RouteResult / RouteError.
-func (r *Router) Route(_ context.Context, speaker string, transcript types.Transcript) (agent.NPCAgent, error) {
+func (r *Router) Route(_ context.Context, speaker string, transcript stt.Transcript) (agent.NPCAgent, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.RouteCalls = append(r.RouteCalls, RouteCall{Speaker: speaker, Transcript: transcript})

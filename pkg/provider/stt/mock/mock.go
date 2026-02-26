@@ -7,8 +7,8 @@
 // Example:
 //
 //	sess := &mock.Session{
-//	    PartialsCh: make(chan types.Transcript, 1),
-//	    FinalsCh:   make(chan types.Transcript, 1),
+//	    PartialsCh: make(chan stt.Transcript, 1),
+//	    FinalsCh:   make(chan stt.Transcript, 1),
 //	}
 //	p := &mock.Provider{Session: sess}
 //	handle, _ := p.StartStream(ctx, cfg)
@@ -19,7 +19,6 @@ import (
 	"sync"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // StartStreamCall records a single invocation of Provider.StartStream.
@@ -57,8 +56,8 @@ func (p *Provider) StartStream(ctx context.Context, cfg stt.StreamConfig) (stt.S
 		return p.Session, nil
 	}
 	return &Session{
-		PartialsCh: make(chan types.Transcript, 16),
-		FinalsCh:   make(chan types.Transcript, 16),
+		PartialsCh: make(chan stt.Transcript, 16),
+		FinalsCh:   make(chan stt.Transcript, 16),
 	}, nil
 }
 
@@ -81,7 +80,7 @@ type SendAudioCall struct {
 // SetKeywordsCall records a single invocation of Session.SetKeywords.
 type SetKeywordsCall struct {
 	// Keywords is a copy of the keyword list passed to SetKeywords.
-	Keywords []types.KeywordBoost
+	Keywords []stt.KeywordBoost
 }
 
 // Session is a mock implementation of stt.SessionHandle.
@@ -92,10 +91,10 @@ type Session struct {
 
 	// PartialsCh is the channel returned by Partials(). Callers own this channel
 	// and are responsible for sending to and closing it in tests.
-	PartialsCh chan types.Transcript
+	PartialsCh chan stt.Transcript
 
 	// FinalsCh is the channel returned by Finals(). Callers own this channel.
-	FinalsCh chan types.Transcript
+	FinalsCh chan stt.Transcript
 
 	// SendAudioErr, if non-nil, is returned by every SendAudio call.
 	SendAudioErr error
@@ -130,24 +129,24 @@ func (s *Session) SendAudio(chunk []byte) error {
 
 // Partials returns PartialsCh. The caller must have initialised PartialsCh before
 // calling this method.
-func (s *Session) Partials() <-chan types.Transcript {
+func (s *Session) Partials() <-chan stt.Transcript {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.PartialsCh
 }
 
 // Finals returns FinalsCh.
-func (s *Session) Finals() <-chan types.Transcript {
+func (s *Session) Finals() <-chan stt.Transcript {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.FinalsCh
 }
 
 // SetKeywords records the call and returns SetKeywordsErr.
-func (s *Session) SetKeywords(keywords []types.KeywordBoost) error {
+func (s *Session) SetKeywords(keywords []stt.KeywordBoost) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	kw := make([]types.KeywordBoost, len(keywords))
+	kw := make([]stt.KeywordBoost, len(keywords))
 	copy(kw, keywords)
 	s.SetKeywordsCalls = append(s.SetKeywordsCalls, SetKeywordsCall{Keywords: kw})
 	return s.SetKeywordsErr

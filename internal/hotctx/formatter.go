@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/MrWong99/glyphoxa/pkg/memory"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // FormatSystemPrompt converts a [HotContext] into a system prompt string
@@ -212,7 +211,7 @@ func formatSceneSection(sc *SceneContext) string {
 
 // formatTranscriptSection renders the recent conversation with relative
 // timestamps (e.g., "2m ago") and speaker labels.
-func formatTranscriptSection(entries []types.TranscriptEntry) string {
+func formatTranscriptSection(entries []memory.TranscriptEntry) string {
 	if len(entries) == 0 {
 		return ""
 	}

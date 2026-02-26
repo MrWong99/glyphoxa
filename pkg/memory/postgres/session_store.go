@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/MrWong99/glyphoxa/pkg/memory"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // SessionStoreImpl is the L1 memory layer backed by a PostgreSQL
@@ -24,7 +23,7 @@ type SessionStoreImpl struct {
 
 // WriteEntry implements [memory.SessionStore]. It appends entry to the
 // session_entries table under sessionID.
-func (s *SessionStoreImpl) WriteEntry(ctx context.Context, sessionID string, entry types.TranscriptEntry) error {
+func (s *SessionStoreImpl) WriteEntry(ctx context.Context, sessionID string, entry memory.TranscriptEntry) error {
 	const q = `
 		INSERT INTO session_entries
 		    (session_id, speaker_id, speaker_name, text, raw_text, is_npc, npc_id, timestamp, duration_ns)
@@ -50,7 +49,7 @@ func (s *SessionStoreImpl) WriteEntry(ctx context.Context, sessionID string, ent
 // GetRecent implements [memory.SessionStore]. It returns all entries for
 // sessionID whose timestamp is no earlier than time.Now()-duration, ordered
 // chronologically (oldest first).
-func (s *SessionStoreImpl) GetRecent(ctx context.Context, sessionID string, duration time.Duration) ([]types.TranscriptEntry, error) {
+func (s *SessionStoreImpl) GetRecent(ctx context.Context, sessionID string, duration time.Duration) ([]memory.TranscriptEntry, error) {
 	const q = `
 		SELECT speaker_id, speaker_name, text, raw_text, is_npc, npc_id, timestamp, duration_ns
 		FROM   session_entries
@@ -69,7 +68,7 @@ func (s *SessionStoreImpl) GetRecent(ctx context.Context, sessionID string, dura
 // search over the text column and applies optional filters from opts.
 //
 // The query is passed to plainto_tsquery so no special operator syntax is required.
-func (s *SessionStoreImpl) Search(ctx context.Context, query string, opts memory.SearchOpts) ([]types.TranscriptEntry, error) {
+func (s *SessionStoreImpl) Search(ctx context.Context, query string, opts memory.SearchOpts) ([]memory.TranscriptEntry, error) {
 	args := []any{query} // $1 = FTS query string
 	next := func(v any) string {
 		args = append(args, v)
@@ -110,10 +109,10 @@ func (s *SessionStoreImpl) Search(ctx context.Context, query string, opts memory
 }
 
 // collectEntries scans pgx rows into a slice of TranscriptEntry values.
-func collectEntries(rows pgx.Rows) ([]types.TranscriptEntry, error) {
-	entries, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (types.TranscriptEntry, error) {
+func collectEntries(rows pgx.Rows) ([]memory.TranscriptEntry, error) {
+	entries, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (memory.TranscriptEntry, error) {
 		var (
-			e          types.TranscriptEntry
+			e          memory.TranscriptEntry
 			durationNS int64
 		)
 		if err := row.Scan(
@@ -126,7 +125,7 @@ func collectEntries(rows pgx.Rows) ([]types.TranscriptEntry, error) {
 			&e.Timestamp,
 			&durationNS,
 		); err != nil {
-			return types.TranscriptEntry{}, err
+			return memory.TranscriptEntry{}, err
 		}
 		e.Duration = time.Duration(durationNS)
 		return e, nil
@@ -135,7 +134,7 @@ func collectEntries(rows pgx.Rows) ([]types.TranscriptEntry, error) {
 		return nil, fmt.Errorf("session store: scan rows: %w", err)
 	}
 	if entries == nil {
-		entries = []types.TranscriptEntry{}
+		entries = []memory.TranscriptEntry{}
 	}
 	return entries, nil
 }

@@ -33,7 +33,6 @@ import (
 	"unicode"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // Compile-time interface assertion.
@@ -149,7 +148,7 @@ type cloneSpeakerResponse struct {
 //
 // The returned channel is closed when all text has been synthesised or when ctx
 // is cancelled. The caller must drain the channel to prevent goroutine leaks.
-func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voice types.VoiceProfile) (<-chan []byte, error) {
+func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voice tts.VoiceProfile) (<-chan []byte, error) {
 	if voice.ID == "" {
 		return nil, errors.New("coqui: voice.ID must not be empty")
 	}
@@ -280,7 +279,7 @@ func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voi
 
 // synthesize performs a single POST /tts_to_audio/ call and returns the raw PCM
 // (WAV header stripped). It is called concurrently from dispatcher goroutines.
-func (p *Provider) synthesize(ctx context.Context, sentence string, voice types.VoiceProfile) ([]byte, error) {
+func (p *Provider) synthesize(ctx context.Context, sentence string, voice tts.VoiceProfile) ([]byte, error) {
 	body := ttsRequest{
 		Text:       sentence,
 		SpeakerWav: voice.ID,
@@ -328,7 +327,7 @@ func (p *Provider) synthesize(ctx context.Context, sentence string, voice types.
 //
 // The XTTS server returns a JSON object whose keys are speaker names. Each voice
 // profile's ID and Name are set to the speaker name, and Provider is set to "coqui".
-func (p *Provider) ListVoices(ctx context.Context) ([]types.VoiceProfile, error) {
+func (p *Provider) ListVoices(ctx context.Context) ([]tts.VoiceProfile, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.serverURL+studioSpeakersEndpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("coqui: create list-voices request: %w", err)
@@ -357,9 +356,9 @@ func (p *Provider) ListVoices(ctx context.Context) ([]types.VoiceProfile, error)
 	}
 	sort.Strings(names)
 
-	profiles := make([]types.VoiceProfile, 0, len(names))
+	profiles := make([]tts.VoiceProfile, 0, len(names))
 	for _, name := range names {
-		profiles = append(profiles, types.VoiceProfile{
+		profiles = append(profiles, tts.VoiceProfile{
 			ID:       name,
 			Name:     name,
 			Provider: "coqui",
@@ -379,7 +378,7 @@ func (p *Provider) ListVoices(ctx context.Context) ([]types.VoiceProfile, error)
 //
 // Returns a VoiceProfile for the cloned voice or an error if the request fails.
 // A nil or empty samples slice returns an error rather than sending an empty request.
-func (p *Provider) CloneVoice(ctx context.Context, samples [][]byte) (*types.VoiceProfile, error) {
+func (p *Provider) CloneVoice(ctx context.Context, samples [][]byte) (*tts.VoiceProfile, error) {
 	if len(samples) == 0 {
 		return nil, errors.New("coqui: CloneVoice requires at least one audio sample")
 	}
@@ -428,7 +427,7 @@ func (p *Provider) CloneVoice(ctx context.Context, samples [][]byte) (*types.Voi
 		return nil, errors.New("coqui: clone-speaker response missing name")
 	}
 
-	return &types.VoiceProfile{
+	return &tts.VoiceProfile{
 		ID:       cloneResp.Name,
 		Name:     cloneResp.Name,
 		Provider: "coqui",

@@ -8,7 +8,7 @@
 //
 //	sess := &mock.Session{
 //	    AudioCh:       make(chan []byte, 8),
-//	    TranscriptsCh: make(chan types.TranscriptEntry, 4),
+//	    TranscriptsCh: make(chan memory.TranscriptEntry, 4),
 //	}
 //	p := &mock.Provider{Session: sess}
 //	handle, _ := p.Connect(ctx, cfg)
@@ -18,8 +18,9 @@ import (
 	"context"
 	"sync"
 
+	"github.com/MrWong99/glyphoxa/pkg/memory"
+	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 	"github.com/MrWong99/glyphoxa/pkg/provider/s2s"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // ConnectCall records a single invocation of Provider.Connect.
@@ -64,7 +65,7 @@ func (p *Provider) Connect(ctx context.Context, cfg s2s.SessionConfig) (s2s.Sess
 	}
 	return &Session{
 		AudioCh:       make(chan []byte, 64),
-		TranscriptsCh: make(chan types.TranscriptEntry, 16),
+		TranscriptsCh: make(chan memory.TranscriptEntry, 16),
 	}, nil
 }
 
@@ -96,7 +97,7 @@ type SendAudioCall struct {
 // SetToolsCall records a single invocation of Session.SetTools.
 type SetToolsCall struct {
 	// Tools is a copy of the tool definitions passed to SetTools.
-	Tools []types.ToolDefinition
+	Tools []llm.ToolDefinition
 }
 
 // UpdateInstructionsCall records a single invocation of Session.UpdateInstructions.
@@ -122,7 +123,7 @@ type Session struct {
 
 	// TranscriptsCh is the channel returned by Transcripts(). Callers own this
 	// channel.
-	TranscriptsCh chan types.TranscriptEntry
+	TranscriptsCh chan memory.TranscriptEntry
 
 	// toolCallHandler is the currently registered ToolCallHandler.
 	toolCallHandler s2s.ToolCallHandler
@@ -189,7 +190,7 @@ func (s *Session) Audio() <-chan []byte {
 }
 
 // Transcripts returns TranscriptsCh.
-func (s *Session) Transcripts() <-chan types.TranscriptEntry {
+func (s *Session) Transcripts() <-chan memory.TranscriptEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.TranscriptsCh
@@ -212,10 +213,10 @@ func (s *Session) Handler() s2s.ToolCallHandler {
 }
 
 // SetTools records the call and returns SetToolsErr.
-func (s *Session) SetTools(tools []types.ToolDefinition) error {
+func (s *Session) SetTools(tools []llm.ToolDefinition) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cp := make([]types.ToolDefinition, len(tools))
+	cp := make([]llm.ToolDefinition, len(tools))
 	copy(cp, tools)
 	s.SetToolsCalls = append(s.SetToolsCalls, SetToolsCall{Tools: cp})
 	return s.SetToolsErr

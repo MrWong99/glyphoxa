@@ -22,13 +22,15 @@ import (
 	"sync"
 
 	"github.com/MrWong99/glyphoxa/internal/engine"
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/audio"
+	"github.com/MrWong99/glyphoxa/pkg/memory"
+	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 )
 
 // ProcessCall records the arguments of a single [VoiceEngine.Process] call.
 type ProcessCall struct {
 	// Input is the audio frame passed to Process.
-	Input types.AudioFrame
+	Input audio.AudioFrame
 	// Prompt is the prompt context passed to Process.
 	Prompt engine.PromptContext
 }
@@ -42,7 +44,7 @@ type InjectContextCall struct {
 // SetToolsCall records the arguments of a single [VoiceEngine.SetTools] call.
 type SetToolsCall struct {
 	// Tools is the tool list passed to SetTools.
-	Tools []types.ToolDefinition
+	Tools []llm.ToolDefinition
 }
 
 // VoiceEngine is a mock implementation of [engine.VoiceEngine].
@@ -68,7 +70,7 @@ type VoiceEngine struct {
 
 	// TranscriptsResult is the channel returned by [VoiceEngine.Transcripts].
 	// If nil, a pre-closed channel is returned.
-	TranscriptsResult <-chan types.TranscriptEntry
+	TranscriptsResult <-chan memory.TranscriptEntry
 
 	// ProcessCalls records all Process invocations.
 	ProcessCalls []ProcessCall
@@ -90,7 +92,7 @@ type VoiceEngine struct {
 }
 
 // Process implements [engine.VoiceEngine].
-func (v *VoiceEngine) Process(_ context.Context, input types.AudioFrame, prompt engine.PromptContext) (*engine.Response, error) {
+func (v *VoiceEngine) Process(_ context.Context, input audio.AudioFrame, prompt engine.PromptContext) (*engine.Response, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.ProcessCalls = append(v.ProcessCalls, ProcessCall{Input: input, Prompt: prompt})
@@ -106,7 +108,7 @@ func (v *VoiceEngine) InjectContext(_ context.Context, update engine.ContextUpda
 }
 
 // SetTools implements [engine.VoiceEngine].
-func (v *VoiceEngine) SetTools(tools []types.ToolDefinition) error {
+func (v *VoiceEngine) SetTools(tools []llm.ToolDefinition) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.SetToolsCalls = append(v.SetToolsCalls, SetToolsCall{Tools: tools})
@@ -123,13 +125,13 @@ func (v *VoiceEngine) OnToolCall(handler func(name string, args string) (string,
 
 // Transcripts implements [engine.VoiceEngine]. Returns TranscriptsResult.
 // If TranscriptsResult is nil, a pre-closed channel is returned.
-func (v *VoiceEngine) Transcripts() <-chan types.TranscriptEntry {
+func (v *VoiceEngine) Transcripts() <-chan memory.TranscriptEntry {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	if v.TranscriptsResult != nil {
 		return v.TranscriptsResult
 	}
-	ch := make(chan types.TranscriptEntry)
+	ch := make(chan memory.TranscriptEntry)
 	close(ch)
 	return ch
 }

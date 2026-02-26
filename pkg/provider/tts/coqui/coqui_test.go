@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
 )
 
 // ---- test helpers ----
@@ -145,7 +145,7 @@ func TestNew(t *testing.T) {
 
 func TestSynthesizeStream_EmptyVoiceID(t *testing.T) {
 	p := mustNew(t, "http://localhost:8002")
-	_, err := p.SynthesizeStream(context.Background(), make(chan string), types.VoiceProfile{})
+	_, err := p.SynthesizeStream(context.Background(), make(chan string), tts.VoiceProfile{})
 	if err == nil {
 		t.Fatal("expected error for empty voice ID, got nil")
 	}
@@ -191,7 +191,7 @@ func TestSynthesizeStream_MockServer(t *testing.T) {
 	defer srv.Close()
 
 	p := mustNew(t, srv.URL)
-	voice := types.VoiceProfile{ID: "test_speaker", Provider: "coqui"}
+	voice := tts.VoiceProfile{ID: "test_speaker", Provider: "coqui"}
 
 	// Send two complete sentences.
 	textCh := sendFragments([]string{"Hello world. ", "Goodbye now!"})
@@ -245,7 +245,7 @@ func TestSynthesizeStream_ContextCancellation(t *testing.T) {
 	defer srv.Close()
 
 	p := mustNew(t, srv.URL)
-	voice := types.VoiceProfile{ID: "test_speaker"}
+	voice := tts.VoiceProfile{ID: "test_speaker"}
 
 	// Cancel the context immediately after starting the stream.
 	ctx, cancel := context.WithCancel(context.Background())
@@ -280,7 +280,7 @@ func TestSynthesizeStream_ServerError(t *testing.T) {
 	defer srv.Close()
 
 	p := mustNew(t, srv.URL)
-	voice := types.VoiceProfile{ID: "test_speaker"}
+	voice := tts.VoiceProfile{ID: "test_speaker"}
 
 	textCh := sendFragments([]string{"A sentence."})
 
@@ -353,7 +353,7 @@ func TestSentenceAccumulation(t *testing.T) {
 	defer srv.Close()
 
 	p := mustNew(t, srv.URL)
-	voice := types.VoiceProfile{ID: "spk"}
+	voice := tts.VoiceProfile{ID: "spk"}
 
 	// Deliberately split "Hello world." across three fragments.
 	// "Are you there?" across two fragments.

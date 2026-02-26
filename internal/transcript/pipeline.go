@@ -23,7 +23,7 @@ package transcript
 import (
 	"context"
 
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 )
 
 // Correction captures a single word-level substitution made by the pipeline.
@@ -47,11 +47,11 @@ type Correction struct {
 }
 
 // CorrectedTranscript is the output of a [Pipeline.Correct] call.
-// It pairs the original [types.Transcript] with the fully corrected text and
+// It pairs the original [stt.Transcript] with the fully corrected text and
 // an itemised record of every substitution that was applied.
 type CorrectedTranscript struct {
-	// Original is the raw [types.Transcript] as received from the STT provider.
-	Original types.Transcript
+	// Original is the raw [stt.Transcript] as received from the STT provider.
+	Original stt.Transcript
 
 	// Corrected is the full corrected transcript text with all substitutions
 	// applied. Suitable for downstream processing (memory storage, LLM context).
@@ -63,7 +63,7 @@ type CorrectedTranscript struct {
 	Corrections []Correction
 }
 
-// Pipeline applies multi-stage corrections to a raw [types.Transcript],
+// Pipeline applies multi-stage corrections to a raw [stt.Transcript],
 // resolving STT errors for domain-specific vocabulary.
 //
 // Implementations must be safe for concurrent use.
@@ -79,7 +79,7 @@ type Pipeline interface {
 	// Returns a non-nil *CorrectedTranscript on success.
 	// When no corrections are needed, Corrected equals transcript.Text and
 	// Corrections is an empty (non-nil) slice.
-	Correct(ctx context.Context, transcript types.Transcript, entities []string) (*CorrectedTranscript, error)
+	Correct(ctx context.Context, transcript stt.Transcript, entities []string) (*CorrectedTranscript, error)
 }
 
 // PhoneticMatcher resolves a single word to a known entity name based on

@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
 	"github.com/coder/websocket"
 )
 
@@ -97,7 +97,7 @@ type boiMessage struct {
 // the text channel, and returns a channel emitting raw PCM audio chunks.
 //
 // The returned audio channel is closed when synthesis is complete or ctx is cancelled.
-func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voice types.VoiceProfile) (<-chan []byte, error) {
+func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voice tts.VoiceProfile) (<-chan []byte, error) {
 	if voice.ID == "" {
 		return nil, errors.New("elevenlabs: voice.ID must not be empty")
 	}
@@ -207,7 +207,7 @@ type elevenLabsVoice struct {
 }
 
 // ListVoices returns all voices available from ElevenLabs for the configured API key.
-func (p *Provider) ListVoices(ctx context.Context) ([]types.VoiceProfile, error) {
+func (p *Provider) ListVoices(ctx context.Context) ([]tts.VoiceProfile, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, voicesEndpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("elevenlabs: list voices: %w", err)
@@ -230,7 +230,7 @@ func (p *Provider) ListVoices(ctx context.Context) ([]types.VoiceProfile, error)
 		return nil, fmt.Errorf("elevenlabs: list voices decode: %w", err)
 	}
 
-	profiles := make([]types.VoiceProfile, 0, len(vr.Voices))
+	profiles := make([]tts.VoiceProfile, 0, len(vr.Voices))
 	for _, v := range vr.Voices {
 		meta := make(map[string]string, len(v.Labels)+1)
 		for k, val := range v.Labels {
@@ -239,7 +239,7 @@ func (p *Provider) ListVoices(ctx context.Context) ([]types.VoiceProfile, error)
 		if v.Category != "" {
 			meta["category"] = v.Category
 		}
-		profiles = append(profiles, types.VoiceProfile{
+		profiles = append(profiles, tts.VoiceProfile{
 			ID:       v.VoiceID,
 			Name:     v.Name,
 			Provider: "elevenlabs",
@@ -251,7 +251,7 @@ func (p *Provider) ListVoices(ctx context.Context) ([]types.VoiceProfile, error)
 
 // CloneVoice is not implemented in Phase 1.
 // TODO: implement voice cloning via POST /v1/voices/add
-func (p *Provider) CloneVoice(_ context.Context, samples [][]byte) (*types.VoiceProfile, error) {
+func (p *Provider) CloneVoice(_ context.Context, samples [][]byte) (*tts.VoiceProfile, error) {
 	_ = samples
 	return nil, errors.New("elevenlabs: CloneVoice is not implemented in Phase 1")
 }
@@ -271,12 +271,12 @@ func buildURLForVoice(voiceID, model string) string {
 
 // parseVoicesResponse parses a raw JSON byte slice (matching the ElevenLabs
 // /v1/voices response) into a slice of VoiceProfile values.
-func parseVoicesResponse(data []byte) ([]types.VoiceProfile, error) {
+func parseVoicesResponse(data []byte) ([]tts.VoiceProfile, error) {
 	var vr voicesResponse
 	if err := json.Unmarshal(data, &vr); err != nil {
 		return nil, err
 	}
-	profiles := make([]types.VoiceProfile, 0, len(vr.Voices))
+	profiles := make([]tts.VoiceProfile, 0, len(vr.Voices))
 	for _, v := range vr.Voices {
 		meta := make(map[string]string, len(v.Labels)+1)
 		for k, val := range v.Labels {
@@ -285,7 +285,7 @@ func parseVoicesResponse(data []byte) ([]types.VoiceProfile, error) {
 		if v.Category != "" {
 			meta["category"] = v.Category
 		}
-		profiles = append(profiles, types.VoiceProfile{
+		profiles = append(profiles, tts.VoiceProfile{
 			ID:       v.VoiceID,
 			Name:     v.Name,
 			Provider: "elevenlabs",

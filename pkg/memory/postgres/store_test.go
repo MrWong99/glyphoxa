@@ -13,7 +13,6 @@ import (
 
 	"github.com/MrWong99/glyphoxa/pkg/memory"
 	"github.com/MrWong99/glyphoxa/pkg/memory/postgres"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 const testEmbeddingDim = 4
@@ -95,7 +94,7 @@ func TestL1_WriteAndGetRecent(t *testing.T) {
 
 	sessionID := "session-1"
 	now := time.Now()
-	entries := []types.TranscriptEntry{
+	entries := []memory.TranscriptEntry{
 		{
 			SpeakerID:   "player-1",
 			SpeakerName: "Alice",
@@ -171,7 +170,7 @@ func TestL1_Search(t *testing.T) {
 	l1 := store.L1()
 
 	sessionID := "search-session"
-	writeL1Entries(t, ctx, l1, sessionID, []types.TranscriptEntry{
+	writeL1Entries(t, ctx, l1, sessionID, []memory.TranscriptEntry{
 		{SpeakerID: "p1", Text: "The dragon hoards treasure in the mountain.", Timestamp: time.Now().Add(-5 * time.Minute)},
 		{SpeakerID: "p2", Text: "We should negotiate with the goblin tribe.", Timestamp: time.Now().Add(-4 * time.Minute)},
 		{SpeakerID: "npc1", IsNPC: true, NPCID: "npc1", Text: "The prophecy speaks of a chosen hero.", Timestamp: time.Now().Add(-3 * time.Minute)},
@@ -851,7 +850,7 @@ func TestGraphRAG_QueryWithContext(t *testing.T) {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-func writeL1Entries(t *testing.T, ctx context.Context, l1 *postgres.SessionStoreImpl, sessionID string, entries []types.TranscriptEntry) {
+func writeL1Entries(t *testing.T, ctx context.Context, l1 *postgres.SessionStoreImpl, sessionID string, entries []memory.TranscriptEntry) {
 	t.Helper()
 	for i := range entries {
 		if entries[i].Timestamp.IsZero() {

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 	"github.com/coder/websocket"
 )
 
@@ -95,8 +94,8 @@ func (p *Provider) StartStream(ctx context.Context, cfg stt.StreamConfig) (stt.S
 
 	sess := &session{
 		conn:     conn,
-		partials: make(chan types.Transcript, 64),
-		finals:   make(chan types.Transcript, 64),
+		partials: make(chan stt.Transcript, 64),
+		finals:   make(chan stt.Transcript, 64),
 		audio:    make(chan []byte, 256),
 		done:     make(chan struct{}),
 	}
@@ -167,8 +166,8 @@ type deepgramResponse struct {
 // session is a live Deepgram streaming session. It implements stt.SessionHandle.
 type session struct {
 	conn     *websocket.Conn
-	partials chan types.Transcript
-	finals   chan types.Transcript
+	partials chan stt.Transcript
+	finals   chan stt.Transcript
 	audio    chan []byte
 
 	done   chan struct{}
@@ -176,7 +175,7 @@ type session struct {
 	wg     sync.WaitGroup
 
 	kwMu     sync.RWMutex
-	keywords []types.KeywordBoost // stored for reference; Deepgram doesn't support mid-stream updates
+	keywords []stt.KeywordBoost // stored for reference; Deepgram doesn't support mid-stream updates
 }
 
 // SendAudio queues a PCM audio chunk for delivery to Deepgram.
@@ -195,14 +194,14 @@ func (s *session) SendAudio(chunk []byte) error {
 }
 
 // Partials returns the channel of interim transcripts.
-func (s *session) Partials() <-chan types.Transcript { return s.partials }
+func (s *session) Partials() <-chan stt.Transcript { return s.partials }
 
 // Finals returns the channel of final transcripts.
-func (s *session) Finals() <-chan types.Transcript { return s.finals }
+func (s *session) Finals() <-chan stt.Transcript { return s.finals }
 
 // SetKeywords records the new keyword list. Deepgram does not support mid-stream
 // keyword updates, so this returns stt.ErrNotSupported.
-func (s *session) SetKeywords(keywords []types.KeywordBoost) error {
+func (s *session) SetKeywords(keywords []stt.KeywordBoost) error {
 	s.kwMu.Lock()
 	s.keywords = keywords
 	s.kwMu.Unlock()
@@ -287,22 +286,22 @@ func (s *session) readLoop(ctx context.Context) {
 
 // parseDeepgramResponse parses a raw Deepgram WebSocket message into a Transcript.
 // Returns (Transcript, true) on success, or (zero, false) if the message should be ignored.
-func parseDeepgramResponse(data []byte) (types.Transcript, bool) {
+func parseDeepgramResponse(data []byte) (stt.Transcript, bool) {
 	var resp deepgramResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return types.Transcript{}, false
+		return stt.Transcript{}, false
 	}
 	if resp.Type != "Results" {
-		return types.Transcript{}, false
+		return stt.Transcript{}, false
 	}
 	if len(resp.Channel.Alternatives) == 0 {
-		return types.Transcript{}, false
+		return stt.Transcript{}, false
 	}
 
 	alt := resp.Channel.Alternatives[0]
-	words := make([]types.WordDetail, 0, len(alt.Words))
+	words := make([]stt.WordDetail, 0, len(alt.Words))
 	for _, w := range alt.Words {
-		words = append(words, types.WordDetail{
+		words = append(words, stt.WordDetail{
 			Word:       w.Word,
 			Start:      time.Duration(w.Start * float64(time.Second)),
 			End:        time.Duration(w.End * float64(time.Second)),
@@ -310,7 +309,7 @@ func parseDeepgramResponse(data []byte) (types.Transcript, bool) {
 		})
 	}
 
-	return types.Transcript{
+	return stt.Transcript{
 		Text:       alt.Transcript,
 		IsFinal:    resp.IsFinal,
 		Confidence: alt.Confidence,

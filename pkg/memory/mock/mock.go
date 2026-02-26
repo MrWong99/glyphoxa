@@ -7,7 +7,7 @@
 // Typical usage:
 //
 //	store := &mock.SessionStore{}
-//	store.GetRecentResult = []types.TranscriptEntry{{Text: "hello"}}
+//	store.GetRecentResult = []memory.TranscriptEntry{{Text: "hello"}}
 //
 //	// inject store into the system under test …
 //
@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/MrWong99/glyphoxa/pkg/memory"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // Call records the name and arguments of a single method invocation.
@@ -52,14 +51,14 @@ type SessionStore struct {
 
 	// GetRecentResult is returned by [SessionStore.GetRecent].
 	// When nil, GetRecent returns an empty non-nil slice.
-	GetRecentResult []types.TranscriptEntry
+	GetRecentResult []memory.TranscriptEntry
 
 	// GetRecentErr is returned by [SessionStore.GetRecent] when non-nil.
 	GetRecentErr error
 
 	// SearchResult is returned by [SessionStore.Search].
 	// When nil, Search returns an empty non-nil slice.
-	SearchResult []types.TranscriptEntry
+	SearchResult []memory.TranscriptEntry
 
 	// SearchErr is returned by [SessionStore.Search] when non-nil.
 	SearchErr error
@@ -95,7 +94,7 @@ func (m *SessionStore) Reset() {
 }
 
 // WriteEntry implements [memory.SessionStore].
-func (m *SessionStore) WriteEntry(_ context.Context, sessionID string, entry types.TranscriptEntry) error {
+func (m *SessionStore) WriteEntry(_ context.Context, sessionID string, entry memory.TranscriptEntry) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.calls = append(m.calls, Call{Method: "WriteEntry", Args: []any{sessionID, entry}})
@@ -103,27 +102,27 @@ func (m *SessionStore) WriteEntry(_ context.Context, sessionID string, entry typ
 }
 
 // GetRecent implements [memory.SessionStore].
-func (m *SessionStore) GetRecent(_ context.Context, sessionID string, duration time.Duration) ([]types.TranscriptEntry, error) {
+func (m *SessionStore) GetRecent(_ context.Context, sessionID string, duration time.Duration) ([]memory.TranscriptEntry, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.calls = append(m.calls, Call{Method: "GetRecent", Args: []any{sessionID, duration}})
 	if m.GetRecentResult == nil {
-		return []types.TranscriptEntry{}, m.GetRecentErr
+		return []memory.TranscriptEntry{}, m.GetRecentErr
 	}
-	out := make([]types.TranscriptEntry, len(m.GetRecentResult))
+	out := make([]memory.TranscriptEntry, len(m.GetRecentResult))
 	copy(out, m.GetRecentResult)
 	return out, m.GetRecentErr
 }
 
 // Search implements [memory.SessionStore].
-func (m *SessionStore) Search(_ context.Context, query string, opts memory.SearchOpts) ([]types.TranscriptEntry, error) {
+func (m *SessionStore) Search(_ context.Context, query string, opts memory.SearchOpts) ([]memory.TranscriptEntry, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.calls = append(m.calls, Call{Method: "Search", Args: []any{query, opts}})
 	if m.SearchResult == nil {
-		return []types.TranscriptEntry{}, m.SearchErr
+		return []memory.TranscriptEntry{}, m.SearchErr
 	}
-	out := make([]types.TranscriptEntry, len(m.SearchResult))
+	out := make([]memory.TranscriptEntry, len(m.SearchResult))
 	copy(out, m.SearchResult)
 	return out, m.SearchErr
 }

@@ -16,7 +16,9 @@ package s2s
 import (
 	"context"
 
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/memory"
+	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
+	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
 )
 
 // ToolCallHandler is a callback invoked by the session whenever the underlying
@@ -46,7 +48,7 @@ type ContextItem struct {
 // SessionConfig is the initial configuration for a new S2S session.
 type SessionConfig struct {
 	// Voice defines the voice the model will use for synthesised speech output.
-	Voice types.VoiceProfile
+	Voice tts.VoiceProfile
 
 	// Instructions is the system-level prompt that defines the NPC's personality,
 	// backstory, and behavioural constraints. Equivalent to a system message in the
@@ -56,7 +58,7 @@ type SessionConfig struct {
 	// Tools is the initial set of tool definitions offered to the model. The model
 	// may invoke these during the session; tool calls are surfaced via the
 	// ToolCallHandler set with OnToolCall.
-	Tools []types.ToolDefinition
+	Tools []llm.ToolDefinition
 }
 
 // S2SCapabilities describes static properties of the S2S provider.
@@ -75,7 +77,7 @@ type S2SCapabilities struct {
 	SupportsResumption bool
 
 	// Voices lists the voice profiles available for this provider.
-	Voices []types.VoiceProfile
+	Voices []tts.VoiceProfile
 }
 
 // SessionHandle represents an open S2S session. It is an interface so that test
@@ -102,7 +104,7 @@ type SessionHandle interface {
 	// Transcripts returns a read-only channel that emits TranscriptEntry values for
 	// both user speech (as recognised by the model) and NPC responses (as generated
 	// text). The channel is closed when the session ends.
-	Transcripts() <-chan types.TranscriptEntry
+	Transcripts() <-chan memory.TranscriptEntry
 
 	// OnToolCall registers a handler that is invoked synchronously whenever the
 	// model requests a tool call. Only one handler can be active at a time; calling
@@ -113,7 +115,7 @@ type SessionHandle interface {
 	// SetTools replaces the active tool definitions without restarting the session.
 	// Providers that do not support mid-session tool updates may return an error.
 	// The change takes effect on a best-effort basis for in-flight turns.
-	SetTools(tools []types.ToolDefinition) error
+	SetTools(tools []llm.ToolDefinition) error
 
 	// UpdateInstructions replaces the system-level instructions for the NPC.
 	// Providers that do not support mid-session instruction updates may return an

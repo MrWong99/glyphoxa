@@ -20,8 +20,6 @@ package memory
 import (
 	"context"
 	"time"
-
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -312,7 +310,7 @@ type ContextResult struct {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // SessionStore is the L1 memory layer: a time-ordered, append-only log of
-// [types.TranscriptEntry] records for one or more game sessions.
+// [TranscriptEntry] records for one or more game sessions.
 //
 // Entries must be returned in chronological order unless otherwise specified.
 // Implementations must be safe for concurrent use.
@@ -320,18 +318,18 @@ type SessionStore interface {
 	// WriteEntry appends a TranscriptEntry to the store for the given session.
 	// sessionID must be non-empty.
 	// Returns an error only on persistent storage failure.
-	WriteEntry(ctx context.Context, sessionID string, entry types.TranscriptEntry) error
+	WriteEntry(ctx context.Context, sessionID string, entry TranscriptEntry) error
 
 	// GetRecent returns all entries for the given session whose Timestamp is
 	// no earlier than time.Now()-duration.
 	// Returns an empty (non-nil) slice when no matching entries exist.
-	GetRecent(ctx context.Context, sessionID string, duration time.Duration) ([]types.TranscriptEntry, error)
+	GetRecent(ctx context.Context, sessionID string, duration time.Duration) ([]TranscriptEntry, error)
 
 	// Search performs keyword / full-text search over stored entries.
 	// The query string is matched against the Text field.
 	// opts refines the result set by time range, speaker, or session scope.
 	// Returns an empty (non-nil) slice when no entries match.
-	Search(ctx context.Context, query string, opts SearchOpts) ([]types.TranscriptEntry, error)
+	Search(ctx context.Context, query string, opts SearchOpts) ([]TranscriptEntry, error)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

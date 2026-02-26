@@ -13,8 +13,6 @@ package stt
 
 import (
 	"context"
-
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // StreamConfig describes the audio format and recognition hints for a new STT
@@ -34,9 +32,9 @@ type StreamConfig struct {
 	Language string
 
 	// Keywords is a list of vocabulary hints that increase recognition probability
-	// for uncommon words such as fantasy proper nouns. See types.KeywordBoost for
+	// for uncommon words such as fantasy proper nouns. See KeywordBoost for
 	// the boost intensity semantics.
-	Keywords []types.KeywordBoost
+	Keywords []KeywordBoost
 }
 
 // SessionHandle represents an open STT streaming session. It is an interface so
@@ -56,19 +54,19 @@ type SessionHandle interface {
 	// values as the provider makes preliminary guesses. These are suitable for
 	// driving UI indicators but must not be written to the authoritative session log.
 	// The channel is closed when the session ends.
-	Partials() <-chan types.Transcript
+	Partials() <-chan Transcript
 
 	// Finals returns a read-only channel that emits authoritative Transcript values
 	// once the provider has committed to a recognition result. These are the values
 	// that should be stored in the session log and passed to the LLM.
 	// The channel is closed when the session ends.
-	Finals() <-chan types.Transcript
+	Finals() <-chan Transcript
 
 	// SetKeywords replaces the active keyword boost list without restarting the
 	// session. Providers that do not support mid-session keyword updates may return
 	// ErrNotSupported. Changes take effect on a best-effort basis; already-buffered
 	// audio frames may still use the previous keyword set.
-	SetKeywords(keywords []types.KeywordBoost) error
+	SetKeywords(keywords []KeywordBoost) error
 
 	// Close terminates the session, flushes any pending audio, and releases all
 	// associated resources. After Close returns, the Partials and Finals channels

@@ -7,7 +7,7 @@
 //
 //	p := &mock.Provider{
 //	    SynthesizeChunks: [][]byte{[]byte("audio1"), []byte("audio2")},
-//	    ListVoicesResult: []types.VoiceProfile{{ID: "v1", Name: "Alice"}},
+//	    ListVoicesResult: []tts.VoiceProfile{{ID: "v1", Name: "Alice"}},
 //	}
 //	ch, _ := p.SynthesizeStream(ctx, textCh, voice)
 package mock
@@ -17,7 +17,6 @@ import (
 	"sync"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // SynthesizeStreamCall records a single invocation of SynthesizeStream.
@@ -27,7 +26,7 @@ type SynthesizeStreamCall struct {
 	// Text is the text input channel passed to SynthesizeStream.
 	Text <-chan string
 	// Voice is the VoiceProfile passed to SynthesizeStream.
-	Voice types.VoiceProfile
+	Voice tts.VoiceProfile
 }
 
 // ListVoicesCall records a single invocation of ListVoices.
@@ -59,13 +58,13 @@ type Provider struct {
 	SynthesizeErr error
 
 	// ListVoicesResult is returned by ListVoices.
-	ListVoicesResult []types.VoiceProfile
+	ListVoicesResult []tts.VoiceProfile
 
 	// ListVoicesErr, if non-nil, is returned as the error from ListVoices.
 	ListVoicesErr error
 
 	// CloneVoiceResult is returned by CloneVoice. May be nil.
-	CloneVoiceResult *types.VoiceProfile
+	CloneVoiceResult *tts.VoiceProfile
 
 	// CloneVoiceErr, if non-nil, is returned as the error from CloneVoice.
 	CloneVoiceErr error
@@ -84,7 +83,7 @@ type Provider struct {
 
 // SynthesizeStream records the call and, if SynthesizeErr is nil, returns a
 // channel that emits SynthesizeChunks then closes.
-func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voice types.VoiceProfile) (<-chan []byte, error) {
+func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voice tts.VoiceProfile) (<-chan []byte, error) {
 	p.mu.Lock()
 	if p.SynthesizeErr != nil {
 		err := p.SynthesizeErr
@@ -118,7 +117,7 @@ func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voi
 }
 
 // ListVoices records the call and returns ListVoicesResult, ListVoicesErr.
-func (p *Provider) ListVoices(ctx context.Context) ([]types.VoiceProfile, error) {
+func (p *Provider) ListVoices(ctx context.Context) ([]tts.VoiceProfile, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.ListVoicesCalls = append(p.ListVoicesCalls, ListVoicesCall{Ctx: ctx})
@@ -126,7 +125,7 @@ func (p *Provider) ListVoices(ctx context.Context) ([]types.VoiceProfile, error)
 }
 
 // CloneVoice records the call and returns CloneVoiceResult, CloneVoiceErr.
-func (p *Provider) CloneVoice(ctx context.Context, samples [][]byte) (*types.VoiceProfile, error) {
+func (p *Provider) CloneVoice(ctx context.Context, samples [][]byte) (*tts.VoiceProfile, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	samplesCopy := make([][]byte, len(samples))

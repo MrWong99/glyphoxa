@@ -7,7 +7,7 @@
 // Example:
 //
 //	sess := &mock.Session{
-//	    EventResult: types.VADEvent{Type: types.VADSpeechStart, Probability: 0.9},
+//	    EventResult: vad.VADEvent{Type: vad.VADSpeechStart, Probability: 0.9},
 //	}
 //	eng := &mock.Engine{Session: sess}
 //	handle, _ := eng.NewSession(cfg)
@@ -17,7 +17,6 @@ import (
 	"sync"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/vad"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // NewSessionCall records a single invocation of Engine.NewSession.
@@ -76,7 +75,7 @@ type Session struct {
 	mu sync.Mutex
 
 	// EventResult is returned by every ProcessFrame call.
-	EventResult types.VADEvent
+	EventResult vad.VADEvent
 
 	// ProcessFrameErr, if non-nil, is returned by every ProcessFrame call.
 	ProcessFrameErr error
@@ -97,7 +96,7 @@ type Session struct {
 }
 
 // ProcessFrame records the call and returns EventResult, ProcessFrameErr.
-func (s *Session) ProcessFrame(frame []byte) (types.VADEvent, error) {
+func (s *Session) ProcessFrame(frame []byte) (vad.VADEvent, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cp := make([]byte, len(frame))

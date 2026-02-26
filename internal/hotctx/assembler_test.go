@@ -9,7 +9,6 @@ import (
 	"github.com/MrWong99/glyphoxa/internal/hotctx"
 	"github.com/MrWong99/glyphoxa/pkg/memory"
 	"github.com/MrWong99/glyphoxa/pkg/memory/mock"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -31,10 +30,10 @@ func makeIdentity(npcID, name string) *memory.NPCIdentity {
 	}
 }
 
-func makeTranscript(n int) []types.TranscriptEntry {
-	entries := make([]types.TranscriptEntry, n)
+func makeTranscript(n int) []memory.TranscriptEntry {
+	entries := make([]memory.TranscriptEntry, n)
 	for i := range entries {
-		entries[i] = types.TranscriptEntry{
+		entries[i] = memory.TranscriptEntry{
 			SpeakerID:   "player1",
 			SpeakerName: "Alice",
 			Text:        "Hello there",

@@ -17,8 +17,6 @@ package audio
 
 import (
 	"context"
-
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // EventType classifies participant lifecycle events emitted by a [Connection].
@@ -68,18 +66,18 @@ type Event struct {
 type Connection interface {
 	// InputStreams returns a snapshot of the current per-participant audio channels.
 	// The map key is the platform-specific participant ID; the value is a read-only
-	// channel that delivers [types.AudioFrame] values as they arrive from that
+	// channel that delivers [AudioFrame] values as they arrive from that
 	// participant. A new entry appears for each joining participant and is removed
 	// (channel closed) when that participant leaves.
 	//
 	// Callers should call InputStreams again after receiving an [EventJoin] event to
 	// pick up newly added channels.
-	InputStreams() map[string]<-chan types.AudioFrame
+	InputStreams() map[string]<-chan AudioFrame
 
 	// OutputStream returns the single write-only channel for mixed NPC output.
 	// Frames written here are mixed and sent to all channel participants.
 	// The channel is buffered; writes must not block indefinitely.
-	OutputStream() chan<- types.AudioFrame
+	OutputStream() chan<- AudioFrame
 
 	// OnParticipantChange registers cb as the callback to invoke whenever a
 	// participant joins or leaves the channel. Only one callback may be registered

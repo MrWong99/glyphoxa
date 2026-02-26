@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // ---- URL / query-param tests ----
@@ -85,7 +84,7 @@ func TestBuildURL_Keywords(t *testing.T) {
 
 	cfg := stt.StreamConfig{
 		SampleRate: 16000,
-		Keywords: []types.KeywordBoost{
+		Keywords: []stt.KeywordBoost{
 			{Keyword: "Eldrinax", Boost: 5},
 			{Keyword: "Zorrath", Boost: 3.5},
 		},

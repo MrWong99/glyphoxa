@@ -16,7 +16,8 @@ import (
 	"context"
 
 	"github.com/MrWong99/glyphoxa/internal/engine"
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
+	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
 )
 
 // NPCIdentity describes the static persona of an NPC.
@@ -31,7 +32,7 @@ type NPCIdentity struct {
 	Personality string
 
 	// Voice is the TTS voice profile used when synthesising this NPC's speech.
-	Voice types.VoiceProfile
+	Voice tts.VoiceProfile
 
 	// KnowledgeScope lists topics or domains the NPC is knowledgeable about.
 	// The orchestrator uses this list to route player questions to the most
@@ -112,7 +113,7 @@ type NPCAgent interface {
 	// playback (not when audio finishes playing). It is safe to call from multiple
 	// goroutines, though concurrent calls for the same NPC will be serialised
 	// internally to preserve conversational coherence.
-	HandleUtterance(ctx context.Context, speaker string, transcript types.Transcript) error
+	HandleUtterance(ctx context.Context, speaker string, transcript stt.Transcript) error
 
 	// UpdateScene pushes a new scene context to the NPC. The NPC incorporates
 	// this into its next [engine.VoiceEngine.InjectContext] call so that subsequent

@@ -19,7 +19,6 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/MrWong99/glyphoxa/pkg/memory"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,7 +33,7 @@ type HotContext struct {
 
 	// RecentTranscript is the last N minutes of session conversation, capped at
 	// the assembler's maxEntries setting.
-	RecentTranscript []types.TranscriptEntry
+	RecentTranscript []memory.TranscriptEntry
 
 	// SceneContext contains the current location and other entities present.
 	SceneContext *SceneContext
@@ -118,7 +117,7 @@ func (a *Assembler) Assemble(ctx context.Context, npcID string, sessionID string
 
 	var (
 		identity   *memory.NPCIdentity
-		transcript []types.TranscriptEntry
+		transcript []memory.TranscriptEntry
 		scene      *SceneContext
 	)
 

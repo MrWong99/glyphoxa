@@ -1,7 +1,7 @@
 // Package mcp defines the interface for a Model Context Protocol (MCP) host.
 //
 // The MCP host manages connections to one or more MCP servers, maintains a
-// catalogue of available tools (keyed by [types.BudgetTier]), executes tool
+// catalogue of available tools (keyed by [BudgetTier]), executes tool
 // calls on behalf of NPC agents, and calibrates tool latency so that tool
 // definitions carry accurate tier assignments.
 //
@@ -20,7 +20,7 @@ package mcp
 import (
 	"context"
 
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 )
 
 // ServerConfig describes how to connect to a single MCP server.
@@ -69,9 +69,9 @@ type ToolResult struct {
 }
 
 // ToolHealth captures the measured runtime performance of a single MCP tool,
-// populated by [Host.Calibrate] and used to assign [types.BudgetTier] values.
+// populated by [Host.Calibrate] and used to assign [BudgetTier] values.
 type ToolHealth struct {
-	// Name is the tool's unique identifier, matching [types.ToolDefinition.Name].
+	// Name is the tool's unique identifier, matching [llm.ToolDefinition.Name].
 	Name string
 
 	// MeasuredP50Ms is the observed median (50th-percentile) execution latency
@@ -89,12 +89,12 @@ type ToolHealth struct {
 	// ErrorRate is the fraction of calls that resulted in an error (0.0–1.0).
 	ErrorRate float64
 
-	// Tier is the [types.BudgetTier] assigned to this tool based on its
-	// measured latency. Assignment follows [types.BudgetTier.MaxLatencyMs]:
+	// Tier is the [BudgetTier] assigned to this tool based on its
+	// measured latency. Assignment follows [BudgetTier.MaxLatencyMs]:
 	//   BudgetFast     — MeasuredP50Ms ≤ 500
 	//   BudgetStandard — MeasuredP50Ms ≤ 1500
 	//   BudgetDeep     — all remaining tools
-	Tier types.BudgetTier
+	Tier BudgetTier
 }
 
 // Host manages connections to MCP servers, routes tool calls, and tracks
@@ -110,15 +110,15 @@ type Host interface {
 	// tool listing request fails.
 	RegisterServer(ctx context.Context, cfg ServerConfig) error
 
-	// AvailableTools returns all tools whose assigned [types.BudgetTier] is ≤
+	// AvailableTools returns all tools whose assigned [BudgetTier] is ≤
 	// tier, sorted by EstimatedDurationMs ascending (fastest first).
 	//
 	// If [Host.Calibrate] has not been called, tools retain the tiers implied
 	// by their declared EstimatedDurationMs and MaxDurationMs values.
-	AvailableTools(tier types.BudgetTier) []types.ToolDefinition
+	AvailableTools(tier BudgetTier) []llm.ToolDefinition
 
 	// ExecuteTool calls the named tool with JSON-encoded args and returns the
-	// result. name must exactly match a [types.ToolDefinition.Name] returned
+	// result. name must exactly match a [llm.ToolDefinition.Name] returned
 	// by [Host.AvailableTools].
 	//
 	// args must be a valid JSON object string conforming to the tool's
@@ -131,7 +131,7 @@ type Host interface {
 
 	// Calibrate sends lightweight probe requests to every registered tool,
 	// measures their round-trip latency, and updates each tool's assigned
-	// [types.BudgetTier]. Probes must run concurrently and respect ctx for
+	// [BudgetTier]. Probes must run concurrently and respect ctx for
 	// cancellation and deadline propagation.
 	Calibrate(ctx context.Context) error
 

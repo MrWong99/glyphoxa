@@ -11,8 +11,6 @@ package tts
 
 import (
 	"context"
-
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // Provider is the abstraction over any TTS backend.
@@ -35,7 +33,7 @@ type Provider interface {
 	// Returns a non-nil error only if the stream cannot be started. Errors
 	// encountered during synthesis are signalled by closing the audio channel early;
 	// callers should check ctx.Err() to distinguish cancellation from provider errors.
-	SynthesizeStream(ctx context.Context, text <-chan string, voice types.VoiceProfile) (<-chan []byte, error)
+	SynthesizeStream(ctx context.Context, text <-chan string, voice VoiceProfile) (<-chan []byte, error)
 
 	// ListVoices returns all voice profiles available from this provider. The list
 	// reflects the provider's current catalogue and may change between calls if the
@@ -43,7 +41,7 @@ type Provider interface {
 	//
 	// Returns an error if the provider cannot be reached or if ctx is cancelled
 	// before the list is retrieved.
-	ListVoices(ctx context.Context) ([]types.VoiceProfile, error)
+	ListVoices(ctx context.Context) ([]VoiceProfile, error)
 
 	// CloneVoice creates a new voice profile by training on the supplied audio
 	// samples. Each element of samples must be raw PCM or a provider-supported
@@ -53,5 +51,5 @@ type Provider interface {
 	// Returns a pointer to the newly created VoiceProfile (with a provider-assigned
 	// ID) or an error if cloning fails. A nil samples slice or an empty slice should
 	// return an error rather than panic.
-	CloneVoice(ctx context.Context, samples [][]byte) (*types.VoiceProfile, error)
+	CloneVoice(ctx context.Context, samples [][]byte) (*VoiceProfile, error)
 }

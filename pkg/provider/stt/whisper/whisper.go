@@ -38,7 +38,6 @@ import (
 	"time"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 const (
@@ -183,8 +182,8 @@ func (p *Provider) StartStream(ctx context.Context, cfg stt.StreamConfig) (stt.S
 		httpClient:          p.httpClient,
 
 		audioCh:  make(chan []byte, 256),
-		partials: make(chan types.Transcript, 64),
-		finals:   make(chan types.Transcript, 64),
+		partials: make(chan stt.Transcript, 64),
+		finals:   make(chan stt.Transcript, 64),
 		done:     make(chan struct{}),
 	}
 
@@ -212,8 +211,8 @@ type session struct {
 
 	// channels for audio input and transcript output
 	audioCh  chan []byte
-	partials chan types.Transcript
-	finals   chan types.Transcript
+	partials chan stt.Transcript
+	finals   chan stt.Transcript
 
 	// lifecycle
 	done chan struct{}
@@ -243,17 +242,17 @@ func (s *session) SendAudio(chunk []byte) error {
 // Partials returns a read-only channel that emits interim Transcript values.
 // For whisper.cpp each partial is emitted simultaneously with its corresponding
 // final (they carry identical text). The channel is closed when the session ends.
-func (s *session) Partials() <-chan types.Transcript { return s.partials }
+func (s *session) Partials() <-chan stt.Transcript { return s.partials }
 
 // Finals returns a read-only channel that emits authoritative Transcript values.
 // These should be written to the session log and passed to the LLM.
 // The channel is closed when the session ends.
-func (s *session) Finals() <-chan types.Transcript { return s.finals }
+func (s *session) Finals() <-chan stt.Transcript { return s.finals }
 
 // SetKeywords always returns an error because whisper.cpp does not expose a
 // keyword-boosting API. The caller should treat this as a best-effort hint;
 // the session remains usable after this call.
-func (s *session) SetKeywords(_ []types.KeywordBoost) error {
+func (s *session) SetKeywords(_ []stt.KeywordBoost) error {
 	return fmt.Errorf("whisper: %w", errNotSupported)
 }
 
@@ -313,11 +312,11 @@ func (s *session) processLoop(ctx context.Context) {
 		// Non-blocking sends: channels are buffered (64 elements). If they are
 		// somehow full we skip rather than deadlock during shutdown.
 		select {
-		case s.partials <- types.Transcript{Text: text, IsFinal: false}:
+		case s.partials <- stt.Transcript{Text: text, IsFinal: false}:
 		default:
 		}
 		select {
-		case s.finals <- types.Transcript{Text: text, IsFinal: true}:
+		case s.finals <- stt.Transcript{Text: text, IsFinal: true}:
 		default:
 		}
 	}

@@ -12,8 +12,6 @@ package llm
 
 import (
 	"context"
-
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 // Usage holds token accounting information returned by the LLM backend.
@@ -38,13 +36,13 @@ type Usage struct {
 type CompletionRequest struct {
 	// Messages is the ordered conversation history. The last message is typically
 	// from the "user" role and drives the response.
-	Messages []types.Message
+	Messages []Message
 
 	// Tools is the set of function/tool definitions offered to the model. The model
 	// may choose to call one or more of them in its response.
 	// Providers that do not support tool calling should return an error or ignore this
 	// field — callers should check Capabilities().SupportsToolCalling first.
-	Tools []types.ToolDefinition
+	Tools []ToolDefinition
 
 	// Temperature controls output randomness in the range [0.0, 2.0]. Lower values
 	// produce more deterministic outputs; higher values increase creativity. A value
@@ -78,7 +76,7 @@ type Chunk struct {
 
 	// ToolCalls contains any tool invocations the model is requesting. For streaming
 	// providers this may be accumulated across multiple chunks by the caller.
-	ToolCalls []types.ToolCall
+	ToolCalls []ToolCall
 }
 
 // CompletionResponse is returned by the non-streaming Complete method.
@@ -89,7 +87,7 @@ type CompletionResponse struct {
 
 	// ToolCalls lists all tool invocations requested by the model. The caller is
 	// responsible for executing them and appending the results to the conversation.
-	ToolCalls []types.ToolCall
+	ToolCalls []ToolCall
 
 	// Usage contains token accounting for this request/response pair.
 	Usage Usage
@@ -127,10 +125,10 @@ type Provider interface {
 	//
 	// Implementations may call the provider's tokenisation API or perform a local
 	// approximation. The result need not be exact but should not undercount.
-	CountTokens(messages []types.Message) (int, error)
+	CountTokens(messages []Message) (int, error)
 
 	// Capabilities returns static metadata describing what this provider's underlying
 	// model supports. The result is assumed to be constant for the lifetime of the
 	// Provider instance.
-	Capabilities() types.ModelCapabilities
+	Capabilities() ModelCapabilities
 }

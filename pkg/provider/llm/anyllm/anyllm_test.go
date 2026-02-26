@@ -5,14 +5,14 @@ import (
 
 	anyllmlib "github.com/mozilla-ai/any-llm-go"
 
-	"github.com/MrWong99/glyphoxa/pkg/types"
+	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 )
 
 // ── convertMessage ────────────────────────────────────────────────────────────
 
 // TestConvertMessage_System checks that system-role messages are converted correctly.
 func TestConvertMessage_System(t *testing.T) {
-	m := types.Message{Role: "system", Content: "You are helpful."}
+	m := llm.Message{Role: "system", Content: "You are helpful."}
 	got := convertMessage(m)
 	if got.Role != "system" {
 		t.Errorf("expected role system, got %q", got.Role)
@@ -24,7 +24,7 @@ func TestConvertMessage_System(t *testing.T) {
 
 // TestConvertMessage_User checks that user-role messages are converted correctly.
 func TestConvertMessage_User(t *testing.T) {
-	m := types.Message{Role: "user", Content: "Hello!"}
+	m := llm.Message{Role: "user", Content: "Hello!"}
 	got := convertMessage(m)
 	if got.Role != "user" {
 		t.Errorf("expected role user, got %q", got.Role)
@@ -36,7 +36,7 @@ func TestConvertMessage_User(t *testing.T) {
 
 // TestConvertMessage_Assistant checks that assistant-role messages are converted correctly.
 func TestConvertMessage_Assistant(t *testing.T) {
-	m := types.Message{Role: "assistant", Content: "Hi there!"}
+	m := llm.Message{Role: "assistant", Content: "Hi there!"}
 	got := convertMessage(m)
 	if got.Role != "assistant" {
 		t.Errorf("expected role assistant, got %q", got.Role)
@@ -48,9 +48,9 @@ func TestConvertMessage_Assistant(t *testing.T) {
 
 // TestConvertMessage_AssistantWithToolCalls checks tool call conversion.
 func TestConvertMessage_AssistantWithToolCalls(t *testing.T) {
-	m := types.Message{
+	m := llm.Message{
 		Role: "assistant",
-		ToolCalls: []types.ToolCall{
+		ToolCalls: []llm.ToolCall{
 			{ID: "call_1", Name: "get_weather", Arguments: `{"city":"Berlin"}`},
 		},
 	}
@@ -78,7 +78,7 @@ func TestConvertMessage_AssistantWithToolCalls(t *testing.T) {
 
 // TestConvertMessage_Tool checks tool-result message conversion.
 func TestConvertMessage_Tool(t *testing.T) {
-	m := types.Message{Role: "tool", Content: "sunny", ToolCallID: "call_1"}
+	m := llm.Message{Role: "tool", Content: "sunny", ToolCallID: "call_1"}
 	got := convertMessage(m)
 	if got.Role != "tool" {
 		t.Errorf("expected role tool, got %q", got.Role)
@@ -93,7 +93,7 @@ func TestConvertMessage_Tool(t *testing.T) {
 
 // TestConvertMessage_WithName checks that the Name field is preserved.
 func TestConvertMessage_WithName(t *testing.T) {
-	m := types.Message{Role: "user", Content: "Hi", Name: "alice"}
+	m := llm.Message{Role: "user", Content: "Hi", Name: "alice"}
 	got := convertMessage(m)
 	if got.Name != "alice" {
 		t.Errorf("expected name alice, got %q", got.Name)
@@ -102,7 +102,7 @@ func TestConvertMessage_WithName(t *testing.T) {
 
 // TestConvertMessage_EmptyToolCalls checks that zero tool calls yield no ToolCalls slice.
 func TestConvertMessage_EmptyToolCalls(t *testing.T) {
-	m := types.Message{Role: "assistant", Content: "No tools here."}
+	m := llm.Message{Role: "assistant", Content: "No tools here."}
 	got := convertMessage(m)
 	if len(got.ToolCalls) != 0 {
 		t.Errorf("expected no tool calls, got %d", len(got.ToolCalls))
@@ -422,7 +422,7 @@ func TestConvenienceConstructors(t *testing.T) {
 // TestCountTokens_Estimation checks that token counting returns a reasonable value.
 func TestCountTokens_Estimation(t *testing.T) {
 	p := &Provider{model: "gpt-4o"}
-	msgs := []types.Message{
+	msgs := []llm.Message{
 		{Role: "user", Content: "Hello world"}, // 11 chars → ~3 tokens + 4 overhead = 7
 	}
 	count, err := p.CountTokens(msgs)
@@ -449,7 +449,7 @@ func TestCountTokens_Empty(t *testing.T) {
 // TestCountTokens_MultipleMessages checks that multiple messages accumulate correctly.
 func TestCountTokens_MultipleMessages(t *testing.T) {
 	p := &Provider{model: "gpt-4o"}
-	msgs := []types.Message{
+	msgs := []llm.Message{
 		{Role: "user", Content: "Hello"},
 		{Role: "assistant", Content: "Hi there, how can I help?"},
 	}

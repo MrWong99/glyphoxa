@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	llm "github.com/MrWong99/glyphoxa/pkg/provider/llm"
-	"github.com/MrWong99/glyphoxa/pkg/types"
 )
 
 const (
@@ -146,7 +145,7 @@ func (c *Corrector) Correct(
 	req := llm.CompletionRequest{
 		SystemPrompt: sysPrompt,
 		Temperature:  c.temperature,
-		Messages: []types.Message{
+		Messages: []llm.Message{
 			{Role: "user", Content: userMsg},
 		},
 	}
