@@ -72,7 +72,7 @@ mcp:
       transport: stdio
       command: /usr/local/bin/mcp-tools
     - name: web
-      transport: http
+      transport: streamable-http
       url: https://tools.example.com/mcp
 `
 
@@ -207,7 +207,7 @@ func TestValidate_MCPMissingURL(t *testing.T) {
 mcp:
   servers:
     - name: webserver
-      transport: http
+      transport: streamable-http
 `
 	_, err := config.LoadFromReader(strings.NewReader(yaml))
 	if err == nil {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/MrWong99/glyphoxa/internal/mcp"
 	"gopkg.in/yaml.v3"
 )
 
@@ -73,20 +74,19 @@ func Validate(cfg *Config) error {
 	}
 
 	// MCP servers
-	validTransports := map[string]bool{"stdio": true, "http": true, "sse": true}
 	for i, srv := range cfg.MCP.Servers {
 		prefix := fmt.Sprintf("mcp.servers[%d]", i)
 		if srv.Name == "" {
 			errs = append(errs, fmt.Errorf("%s.name is required", prefix))
 		}
-		if srv.Transport != "" && !validTransports[srv.Transport] {
-			errs = append(errs, fmt.Errorf("%s.transport %q is invalid; valid values: stdio, http, sse", prefix, srv.Transport))
+		if srv.Transport != "" && !srv.Transport.IsValid() {
+			errs = append(errs, fmt.Errorf("%s.transport %q is invalid; valid values: stdio, streamable-http", prefix, srv.Transport))
 		}
-		if srv.Transport == "stdio" && srv.Command == "" {
+		if srv.Transport == mcp.TransportStdio && srv.Command == "" {
 			errs = append(errs, fmt.Errorf("%s.command is required when transport is stdio", prefix))
 		}
-		if (srv.Transport == "http" || srv.Transport == "sse") && srv.URL == "" {
-			errs = append(errs, fmt.Errorf("%s.url is required when transport is %q", prefix, srv.Transport))
+		if srv.Transport == mcp.TransportStreamableHTTP && srv.URL == "" {
+			errs = append(errs, fmt.Errorf("%s.url is required when transport is streamable-http", prefix))
 		}
 	}
 

@@ -30,19 +30,15 @@ type ServerConfig struct {
 	Name string
 
 	// Transport specifies the connection mechanism.
-	// Supported values:
-	//   "stdio" — spawn a subprocess and communicate over stdin/stdout.
-	//   "http"  — communicate via HTTP JSON-RPC (stateless).
-	//   "sse"   — communicate via HTTP Server-Sent Events (streaming).
-	Transport string
+	Transport Transport
 
 	// Command is the executable path (and optional arguments) used when
 	// Transport is "stdio".
 	// Example: "/usr/local/bin/mcp-server --config /etc/mcp.json"
-	// Ignored for http and sse transports.
+	// Ignored for streamable-http transport.
 	Command string
 
-	// URL is the endpoint address used when Transport is "http" or "sse".
+	// URL is the endpoint address used when Transport is "streamable-http".
 	// Example: "https://tools.example.com/mcp"
 	// Ignored for stdio transport.
 	URL string

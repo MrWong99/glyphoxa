@@ -1,5 +1,21 @@
 package mcp
 
+// Transport selects the connection mechanism for an MCP server.
+type Transport string
+
+const (
+	// TransportStdio spawns a subprocess and communicates over stdin/stdout.
+	TransportStdio Transport = "stdio"
+
+	// TransportStreamableHTTP communicates via the MCP Streamable HTTP protocol.
+	TransportStreamableHTTP Transport = "streamable-http"
+)
+
+// IsValid reports whether t is a recognised transport.
+func (t Transport) IsValid() bool {
+	return t == TransportStdio || t == TransportStreamableHTTP
+}
+
 // BudgetTier controls which MCP tools are visible to the LLM based on latency constraints.
 type BudgetTier int
 

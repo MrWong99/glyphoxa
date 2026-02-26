@@ -2,6 +2,8 @@
 // for the Glyphoxa voice AI system.
 package config
 
+import "github.com/MrWong99/glyphoxa/internal/mcp"
+
 // LogLevel controls log verbosity for the Glyphoxa server.
 type LogLevel string
 
@@ -181,8 +183,7 @@ type MCPServerConfig struct {
 	Name string `yaml:"name"`
 
 	// Transport specifies the connection mechanism.
-	// Valid values: "stdio", "streamable-http".
-	Transport string `yaml:"transport"`
+	Transport mcp.Transport `yaml:"transport"`
 
 	// Command is the executable (with optional arguments) launched when
 	// Transport is "stdio". Ignored for streamable-http transport.
