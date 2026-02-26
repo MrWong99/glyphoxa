@@ -165,7 +165,7 @@ func formatRelationshipsSection(rels []memory.Relationship, relatedEntities []me
 	return strings.Join(lines, "\n")
 }
 
-// formatSceneSection renders location, present NPCs/players, and active quests.
+// formatSceneSection renders location, present entities, and active quests.
 // Returns an empty string when none of those sub-sections have content.
 func formatSceneSection(sc *SceneContext) string {
 	if sc == nil {
@@ -182,9 +182,9 @@ func formatSceneSection(sc *SceneContext) string {
 		lines = append(lines, locLine)
 	}
 
-	if len(sc.PresentNPCs) > 0 {
+	if len(sc.PresentEntities) > 0 {
 		var names []string
-		for _, e := range sc.PresentNPCs {
+		for _, e := range sc.PresentEntities {
 			t := e.Type
 			if t == "" {
 				t = "entity"

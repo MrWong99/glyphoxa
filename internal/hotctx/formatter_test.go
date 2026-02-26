@@ -61,7 +61,7 @@ func fullHotContext() *hotctx.HotContext {
 		},
 		SceneContext: &hotctx.SceneContext{
 			Location:    &locEntity,
-			PresentNPCs: []memory.Entity{friendEntity},
+			PresentEntities: []memory.Entity{friendEntity},
 			ActiveQuests: []memory.Entity{questEntity},
 		},
 		RecentTranscript: []memory.TranscriptEntry{
@@ -240,7 +240,7 @@ func TestFormatSystemPrompt_EmptyScene(t *testing.T) {
 		},
 		SceneContext: &hotctx.SceneContext{
 			// nil Location, empty slices
-			PresentNPCs:  []memory.Entity{},
+			PresentEntities: []memory.Entity{},
 			ActiveQuests: []memory.Entity{},
 		},
 	}

@@ -19,6 +19,18 @@ type ServerConfig struct {
 
 	// LogLevel controls verbosity. Valid values: "debug", "info", "warn", "error".
 	LogLevel string `yaml:"log_level"`
+
+	// TLS configures TLS for the server. When nil, the server runs plain HTTP.
+	TLS *TLSConfig `yaml:"tls"`
+}
+
+// TLSConfig holds TLS certificate paths for enabling HTTPS.
+type TLSConfig struct {
+	// CertFile is the path to the PEM-encoded TLS certificate.
+	CertFile string `yaml:"cert_file"`
+
+	// KeyFile is the path to the PEM-encoded TLS private key.
+	KeyFile string `yaml:"key_file"`
 }
 
 // ProvidersConfig declares which provider implementation to use for each
@@ -39,7 +51,7 @@ type ProviderEntry struct {
 	// Name selects the registered provider implementation (e.g., "openai", "deepgram").
 	Name string `yaml:"name"`
 
-	// APIKey is the authentication key for the provider's API.
+	// APIKey is the authentication key for the provider's API if any.
 	APIKey string `yaml:"api_key"`
 
 	// BaseURL overrides the provider's default API endpoint.
@@ -118,18 +130,52 @@ type MCPServerConfig struct {
 	Name string `yaml:"name"`
 
 	// Transport specifies the connection mechanism.
-	// Valid values: "stdio", "http", "sse".
+	// Valid values: "stdio", "streamable-http".
 	Transport string `yaml:"transport"`
 
 	// Command is the executable (with optional arguments) launched when
-	// Transport is "stdio". Ignored for http/sse transports.
+	// Transport is "stdio". Ignored for streamable-http transport.
 	Command string `yaml:"command"`
 
-	// URL is the endpoint address used when Transport is "http" or "sse".
-	// Ignored for stdio transport.
+	// URL is the MCP endpoint address used when Transport is "streamable-http"
+	// (e.g., "https://mcp.example.com/mcp"). Ignored for stdio transport.
 	URL string `yaml:"url"`
+
+	// Auth configures authentication for streamable-http servers.
+	// Ignored for stdio transport (use Env for credential injection instead).
+	// When nil, requests are sent without authentication.
+	Auth *MCPAuthConfig `yaml:"auth"`
 
 	// Env holds additional environment variables injected into the subprocess
 	// when Transport is "stdio". May be nil.
 	Env map[string]string `yaml:"env"`
+}
+
+// MCPAuthConfig configures authentication for HTTP-based MCP servers,
+// following the MCP authorization specification (OAuth 2.1 Bearer tokens).
+type MCPAuthConfig struct {
+	// Token is a static Bearer token sent in the Authorization header of every
+	// request. Mutually exclusive with the OAuth fields below.
+	Token string `yaml:"token"`
+
+	// OAuth configures OAuth 2.1 client-credentials flow for obtaining tokens
+	// dynamically. When set, Token is ignored.
+	OAuth *MCPOAuthConfig `yaml:"oauth"`
+}
+
+// MCPOAuthConfig configures the OAuth 2.1 client-credentials flow for
+// obtaining Bearer tokens from an authorization server.
+type MCPOAuthConfig struct {
+	// ClientID is the OAuth 2.1 client identifier.
+	ClientID string `yaml:"client_id"`
+
+	// ClientSecret is the OAuth 2.1 client secret.
+	ClientSecret string `yaml:"client_secret"`
+
+	// TokenURL is the authorization server's token endpoint
+	// (e.g., "https://auth.example.com/oauth/token").
+	TokenURL string `yaml:"token_url"`
+
+	// Scopes lists the OAuth scopes to request. May be empty.
+	Scopes []string `yaml:"scopes"`
 }

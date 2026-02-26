@@ -53,8 +53,8 @@ type SceneContext struct {
 	// no LOCATED_AT relationship exists.
 	Location *memory.Entity
 
-	// PresentNPCs lists other entities (NPCs, players) at the same location.
-	PresentNPCs []memory.Entity
+	// PresentEntities lists other entities (NPCs, players) at the same location.
+	PresentEntities []memory.Entity
 
 	// ActiveQuests lists quest entities the NPC is involved in via QUEST_GIVER
 	// or PARTICIPATED_IN relationships.
@@ -183,7 +183,7 @@ func (a *Assembler) buildSceneContext(ctx context.Context, npcID string) (*Scene
 	}
 
 	sc := &SceneContext{
-		PresentNPCs:  []memory.Entity{},
+		PresentEntities: []memory.Entity{},
 		ActiveQuests: []memory.Entity{},
 	}
 
@@ -243,11 +243,11 @@ func (a *Assembler) buildSceneContext(ctx context.Context, npcID string) (*Scene
 				}
 			}
 			// Location goroutine is the only writer to sc.Location and
-			// sc.PresentNPCs, so no mutex needed.
+			// sc.PresentEntities, so no mutex needed.
 			if present == nil {
 				present = []memory.Entity{}
 			}
-			sc.PresentNPCs = present
+			sc.PresentEntities = present
 			return nil
 		})
 	}

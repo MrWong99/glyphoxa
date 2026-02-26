@@ -104,8 +104,8 @@ func TestAssemble_Basic(t *testing.T) {
 	if hctx.SceneContext.Location.Name != "The Forge" {
 		t.Errorf("SceneContext.Location.Name = %q, want %q", hctx.SceneContext.Location.Name, "The Forge")
 	}
-	if len(hctx.SceneContext.PresentNPCs) != 1 {
-		t.Errorf("len(PresentNPCs) = %d, want 1", len(hctx.SceneContext.PresentNPCs))
+	if len(hctx.SceneContext.PresentEntities) != 1 {
+		t.Errorf("len(PresentEntities) = %d, want 1", len(hctx.SceneContext.PresentEntities))
 	}
 
 	// Duration was recorded

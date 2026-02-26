@@ -62,10 +62,10 @@ type SceneContext struct {
 	// "dawn", "high noon"). The NPC may reference this in ambient dialogue.
 	TimeOfDay string
 
-	// PresentNPCs lists the IDs of other NPCs currently sharing the scene with
-	// this NPC. Can be used to generate inter-NPC acknowledgements or to avoid
-	// contradicting what another NPC might say.
-	PresentNPCs []string
+	// PresentEntities lists the IDs of other entities (NPCs, players) currently
+	// sharing the scene with this NPC. Can be used to generate inter-NPC
+	// acknowledgements or to avoid contradicting what another NPC might say.
+	PresentEntities []string
 
 	// ActiveQuests lists the quest IDs that are currently active and relevant
 	// to this NPC's knowledge. Used to surface quest hints and plot-critical
