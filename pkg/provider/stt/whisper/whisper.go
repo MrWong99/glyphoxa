@@ -50,9 +50,9 @@ const (
 	// for 16-bit audio is 32 767; 300 corresponds to near-silence.
 	defaultRMSThreshold = 300.0
 
-	defaultLanguage           = "en"
-	defaultSampleRate         = 16000
-	defaultSilenceThresholdMs = 500
+	defaultLanguage            = "en"
+	defaultSampleRate          = 16000
+	defaultSilenceThresholdMs  = 500
 	defaultMaxBufferDurationMs = 10_000
 )
 
@@ -459,13 +459,13 @@ func encodeWAV(pcm []byte, sampleRate, channels int) []byte {
 
 	// fmt sub-chunk
 	copy(buf[12:16], "fmt ")
-	binary.LittleEndian.PutUint32(buf[16:20], 16)                  // sub-chunk size (PCM)
-	binary.LittleEndian.PutUint16(buf[20:22], 1)                   // audio format: PCM
-	binary.LittleEndian.PutUint16(buf[22:24], uint16(channels))    // num channels
-	binary.LittleEndian.PutUint32(buf[24:28], uint32(sampleRate))  // sample rate
-	binary.LittleEndian.PutUint32(buf[28:32], uint32(byteRate))    // byte rate
-	binary.LittleEndian.PutUint16(buf[32:34], uint16(blockAlign))  // block align
-	binary.LittleEndian.PutUint16(buf[34:36], uint16(bps))         // bits per sample
+	binary.LittleEndian.PutUint32(buf[16:20], 16)                 // sub-chunk size (PCM)
+	binary.LittleEndian.PutUint16(buf[20:22], 1)                  // audio format: PCM
+	binary.LittleEndian.PutUint16(buf[22:24], uint16(channels))   // num channels
+	binary.LittleEndian.PutUint32(buf[24:28], uint32(sampleRate)) // sample rate
+	binary.LittleEndian.PutUint32(buf[28:32], uint32(byteRate))   // byte rate
+	binary.LittleEndian.PutUint16(buf[32:34], uint16(blockAlign)) // block align
+	binary.LittleEndian.PutUint16(buf[34:36], uint16(bps))        // bits per sample
 
 	// data sub-chunk
 	copy(buf[36:40], "data")
@@ -484,7 +484,7 @@ func computeRMS(pcm []byte) float64 {
 		return 0
 	}
 	var sum float64
-	for i := 0; i < n; i++ {
+	for i := range n {
 		sample := int16(binary.LittleEndian.Uint16(pcm[i*2 : i*2+2]))
 		v := float64(sample)
 		sum += v * v

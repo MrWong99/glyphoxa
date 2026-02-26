@@ -41,11 +41,11 @@ var _ tts.Provider = (*Provider)(nil)
 // ---- constants ----
 
 const (
-	defaultLanguage       = "en"
-	defaultTimeout        = 30 * time.Second
-	ttsEndpoint           = "/tts_to_audio/"
+	defaultLanguage        = "en"
+	defaultTimeout         = 30 * time.Second
+	ttsEndpoint            = "/tts_to_audio/"
 	studioSpeakersEndpoint = "/studio_speakers"
-	cloneSpeakerEndpoint  = "/clone_speaker"
+	cloneSpeakerEndpoint   = "/clone_speaker"
 
 	// sentenceLookaheadBuf controls how many concurrent HTTP synthesis requests
 	// may be in-flight simultaneously. Higher values reduce perceived latency at
@@ -254,10 +254,7 @@ func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voi
 					// Emit the PCM in fixed-size chunks.
 					pcm := result.pcm
 					for len(pcm) > 0 {
-						end := pcmChunkSize
-						if end > len(pcm) {
-							end = len(pcm)
-						}
+						end := min(pcmChunkSize, len(pcm))
 						select {
 						case audioCh <- pcm[:end]:
 						case <-ctx.Done():
@@ -494,5 +491,3 @@ func findWAVDataOffset(wav []byte) (int, error) {
 	}
 	return 0, errors.New("coqui: WAV response missing data chunk")
 }
-
-

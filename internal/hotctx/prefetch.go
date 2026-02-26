@@ -18,7 +18,7 @@ import (
 type PreFetcher struct {
 	graph       memory.KnowledgeGraph
 	mu          sync.RWMutex
-	entityNames map[string]string  // lowercase entity name → entity ID
+	entityNames map[string]string         // lowercase entity name → entity ID
 	cache       map[string]*memory.Entity // entity ID → fetched entity
 }
 
@@ -55,7 +55,7 @@ func (p *PreFetcher) RefreshEntityList(ctx context.Context) error {
 			// in a transcript will match the entity "Grimjaw the blacksmith".
 			// Single-word collisions are accepted; the full-name key always wins
 			// when both appear in the transcript.
-			for _, word := range strings.Fields(lower) {
+			for word := range strings.FieldsSeq(lower) {
 				if len(word) >= 4 {
 					if _, exists := newNames[word]; !exists {
 						newNames[word] = e.ID

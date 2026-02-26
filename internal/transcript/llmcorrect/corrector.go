@@ -209,13 +209,13 @@ func parseResponse(content, originalText string) (string, []Correction, error) {
 func stripMarkdown(s string) string {
 	s = strings.TrimSpace(s)
 	for _, prefix := range []string{"```json", "```"} {
-		if strings.HasPrefix(s, prefix) {
-			s = strings.TrimPrefix(s, prefix)
+		if after, ok := strings.CutPrefix(s, prefix); ok {
+			s = after
 			break
 		}
 	}
-	if strings.HasSuffix(s, "```") {
-		s = strings.TrimSuffix(s, "```")
+	if before, ok := strings.CutSuffix(s, "```"); ok {
+		s = before
 	}
 	return strings.TrimSpace(s)
 }

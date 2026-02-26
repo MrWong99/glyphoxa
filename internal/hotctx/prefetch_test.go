@@ -35,9 +35,9 @@ func graphWithEntities(entities ...memory.Entity) *mock.KnowledgeGraph {
 // a substring of a known entity name triggers a pre-fetch.
 func TestPreFetcher_EntityDetection(t *testing.T) {
 	blacksmith := memory.Entity{
-		ID:   "npc-1",
-		Type: "npc",
-		Name: "Grimjaw the blacksmith",
+		ID:         "npc-1",
+		Type:       "npc",
+		Name:       "Grimjaw the blacksmith",
 		Attributes: map[string]any{"occupation": "blacksmith"},
 	}
 
@@ -204,7 +204,7 @@ func TestPreFetcher_ConcurrentProcessPartial(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		go func(i int) {
 			defer wg.Done()
 			// Alternate between different partial transcripts to exercise both

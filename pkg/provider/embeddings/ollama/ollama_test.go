@@ -209,7 +209,7 @@ func TestDimensions_AutoDetect(t *testing.T) {
 	}
 
 	// Call Dimensions multiple times; probe should only happen once.
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if got := p.Dimensions(); got != dim {
 			t.Errorf("call %d: Dimensions(): got %d, want %d", i, got, dim)
 		}

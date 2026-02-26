@@ -41,7 +41,7 @@ func newMockServer(t *testing.T, responseText string, callCount *atomic.Int32) *
 func makeSpeechPCM(samples int) []byte {
 	const amplitude = 10_000.0 // RMS ≈ 7071, well above 300
 	buf := make([]byte, samples*2)
-	for i := 0; i < samples; i++ {
+	for i := range samples {
 		v := int16(amplitude * math.Sin(2*math.Pi*440*float64(i)/16000))
 		binary.LittleEndian.PutUint16(buf[i*2:], uint16(v))
 	}
@@ -471,15 +471,15 @@ func TestConcurrentSendAudio_DoesNotRace(t *testing.T) {
 	defer h.Close()
 
 	done := make(chan struct{})
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		go func() {
-			for j := 0; j < 10; j++ {
+			for range 10 {
 				_ = h.SendAudio(makeSpeechPCM(160))
 			}
 			done <- struct{}{}
 		}()
 	}
-	for i := 0; i < 4; i++ {
+	for range 4 {
 		<-done
 	}
 }

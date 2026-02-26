@@ -184,7 +184,7 @@ func (a *Assembler) buildSceneContext(ctx context.Context, npcID string) (*Scene
 
 	sc := &SceneContext{
 		PresentEntities: []memory.Entity{},
-		ActiveQuests: []memory.Entity{},
+		ActiveQuests:    []memory.Entity{},
 	}
 
 	var locationID string
@@ -204,7 +204,6 @@ func (a *Assembler) buildSceneContext(ctx context.Context, npcID string) (*Scene
 	// Fetch quest entities concurrently.
 	var questMu sync.Mutex
 	for _, id := range questTargetIDs {
-		id := id // capture
 		eg.Go(func() error {
 			entity, err := a.graph.GetEntity(egCtx, id)
 			if err != nil {

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"strings"
 
@@ -68,7 +69,7 @@ func New(apiKey string, opts ...Option) (*Provider, error) {
 
 // textMessage is the JSON payload sent to ElevenLabs for each text fragment.
 type textMessage struct {
-	Text          string        `json:"text"`
+	Text          string         `json:"text"`
 	VoiceSettings *voiceSettings `json:"voice_settings,omitempty"`
 }
 
@@ -80,17 +81,17 @@ type voiceSettings struct {
 
 // audioResponse is the JSON message received from ElevenLabs over the WebSocket.
 type audioResponse struct {
-	Audio    string `json:"audio"`     // base64-encoded PCM
-	IsFinal  bool   `json:"isFinal"`
-	Message  string `json:"message,omitempty"` // error or info
+	Audio   string `json:"audio"` // base64-encoded PCM
+	IsFinal bool   `json:"isFinal"`
+	Message string `json:"message,omitempty"` // error or info
 }
 
 // boiMessage is used for the initial "begin of input" handshake.
 type boiMessage struct {
-	Text          string        `json:"text"`
+	Text          string         `json:"text"`
 	VoiceSettings *voiceSettings `json:"voice_settings,omitempty"`
-	XiAPIKey      string        `json:"xi_api_key"`
-	OutputFormat  string        `json:"output_format,omitempty"`
+	XiAPIKey      string         `json:"xi_api_key"`
+	OutputFormat  string         `json:"output_format,omitempty"`
 }
 
 // SynthesizeStream opens a WebSocket to ElevenLabs, pipes text fragments from
@@ -233,9 +234,7 @@ func (p *Provider) ListVoices(ctx context.Context) ([]tts.VoiceProfile, error) {
 	profiles := make([]tts.VoiceProfile, 0, len(vr.Voices))
 	for _, v := range vr.Voices {
 		meta := make(map[string]string, len(v.Labels)+1)
-		for k, val := range v.Labels {
-			meta[k] = val
-		}
+		maps.Copy(meta, v.Labels)
 		if v.Category != "" {
 			meta["category"] = v.Category
 		}
@@ -279,9 +278,7 @@ func parseVoicesResponse(data []byte) ([]tts.VoiceProfile, error) {
 	profiles := make([]tts.VoiceProfile, 0, len(vr.Voices))
 	for _, v := range vr.Voices {
 		meta := make(map[string]string, len(v.Labels)+1)
-		for k, val := range v.Labels {
-			meta[k] = val
-		}
+		maps.Copy(meta, v.Labels)
 		if v.Category != "" {
 			meta["category"] = v.Category
 		}
