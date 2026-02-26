@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/MrWong99/glyphoxa/internal/transcript/llmcorrect"
+	"github.com/MrWong99/glyphoxa/internal/transcript/phonetic"
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 )
 
@@ -178,7 +179,24 @@ func (p *CorrectionPipeline) applyPhonetic(
 		return text, nil
 	}
 
-	maxEntityWords := maxWordCount(entities)
+	// When the matcher supports precomputation, prepare entity data once
+	// and use the fast path for all window comparisons.
+	var matchFn func(string) (string, float64, bool)
+	var maxEntityWords int
+
+	if pm, ok := p.phonetic.(*phonetic.Matcher); ok {
+		es := phonetic.PrepareEntities(entities)
+		maxEntityWords = es.MaxWords()
+		matchFn = func(word string) (string, float64, bool) {
+			return pm.MatchPrepared(word, es)
+		}
+	} else {
+		maxEntityWords = maxWordCount(entities)
+		matchFn = func(word string) (string, float64, bool) {
+			return p.phonetic.Match(word, entities)
+		}
+	}
+
 	if maxEntityWords == 0 {
 		return text, nil
 	}
@@ -197,7 +215,7 @@ func (p *CorrectionPipeline) applyPhonetic(
 		matched := false
 		for n := maxN; n >= 1; n-- {
 			window := strings.Join(tokens[i:i+n], " ")
-			entity, conf, ok := p.phonetic.Match(window, entities)
+			entity, conf, ok := matchFn(window)
 			if !ok {
 				continue
 			}
@@ -257,5 +275,3 @@ func maxWordCount(entities []string) int {
 	}
 	return max
 }
-
-

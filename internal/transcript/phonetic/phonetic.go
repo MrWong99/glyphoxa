@@ -62,6 +62,51 @@ type Matcher struct {
 	fuzzyThreshold    float64
 }
 
+// entityInfo holds precomputed data for a single entity.
+type entityInfo struct {
+	original string
+	lower    string
+	tokens   []string
+	codes    map[string]struct{}
+}
+
+// EntitySet holds precomputed entity data for efficient repeated matching.
+// Build one with [PrepareEntities] and pass it to [Matcher.MatchPrepared].
+type EntitySet struct {
+	entries  []entityInfo
+	maxWords int
+}
+
+// MaxWords returns the maximum number of whitespace-separated words across
+// all entities in the set.
+func (es *EntitySet) MaxWords() int { return es.maxWords }
+
+// PrepareEntities precomputes lowercased forms, token lists, and Double
+// Metaphone codes for each entity. The returned [EntitySet] can be reused
+// across multiple [Matcher.MatchPrepared] calls with different input words.
+func PrepareEntities(entities []string) *EntitySet {
+	es := &EntitySet{
+		entries: make([]entityInfo, 0, len(entities)),
+	}
+	for _, entity := range entities {
+		lower := strings.ToLower(strings.TrimSpace(entity))
+		if lower == "" {
+			continue
+		}
+		tokens := strings.Fields(lower)
+		if n := len(tokens); n > es.maxWords {
+			es.maxWords = n
+		}
+		es.entries = append(es.entries, entityInfo{
+			original: entity,
+			lower:    lower,
+			tokens:   tokens,
+			codes:    codesForTokens(tokens),
+		})
+	}
+	return es
+}
+
 // New returns a new [Matcher] configured with the supplied options.
 // Default thresholds are 0.70 for phonetic matches and 0.85 for fuzzy
 // fallback matches.
@@ -76,6 +121,50 @@ func New(opts ...Option) *Matcher {
 	return m
 }
 
+// MatchPrepared is like [Matcher.Match] but uses a precomputed [EntitySet]
+// to avoid redundant phonetic-code and string-normalization work on each call.
+func (m *Matcher) MatchPrepared(word string, es *EntitySet) (corrected string, confidence float64, matched bool) {
+	if len(es.entries) == 0 || strings.TrimSpace(word) == "" {
+		return word, 0, false
+	}
+
+	wordLower := strings.ToLower(strings.TrimSpace(word))
+	wordTokens := strings.Fields(wordLower)
+	inputCodes := codesForTokens(wordTokens)
+
+	type candidate struct {
+		entity   string
+		score    float64
+		phonetic bool
+	}
+
+	var best candidate
+
+	for i := range es.entries {
+		ei := &es.entries[i]
+
+		phoneticMatch := codesOverlap(inputCodes, ei.codes)
+		jwScore := bestJWScore(wordTokens, ei.tokens, wordLower, ei.lower)
+
+		if phoneticMatch {
+			if jwScore >= m.phoneticThreshold {
+				if !best.phonetic || jwScore > best.score {
+					best = candidate{entity: ei.original, score: jwScore, phonetic: true}
+				}
+			}
+		} else if !best.phonetic {
+			if jwScore >= m.fuzzyThreshold && jwScore > best.score {
+				best = candidate{entity: ei.original, score: jwScore, phonetic: false}
+			}
+		}
+	}
+
+	if best.entity != "" {
+		return best.entity, best.score, true
+	}
+	return word, 0, false
+}
+
 // Match attempts to find the entity from entities that is most phonetically
 // similar to word.
 //
@@ -86,57 +175,14 @@ func New(opts ...Option) *Matcher {
 //
 // Return values follow the [transcript.PhoneticMatcher] contract: when
 // matched is false, corrected equals word unchanged and confidence is 0.
+//
+// For repeated calls with the same entity list, prefer [PrepareEntities]
+// followed by [Matcher.MatchPrepared] to avoid redundant precomputation.
 func (m *Matcher) Match(word string, entities []string) (corrected string, confidence float64, matched bool) {
 	if len(entities) == 0 || strings.TrimSpace(word) == "" {
 		return word, 0, false
 	}
-
-	wordLower := strings.ToLower(strings.TrimSpace(word))
-	wordTokens := strings.Fields(wordLower)
-
-	// Build phonetic code set for the input.
-	inputCodes := codesForTokens(wordTokens)
-
-	type candidate struct {
-		entity    string
-		score     float64
-		phonetic  bool
-	}
-
-	var best candidate
-
-	for _, entity := range entities {
-		entityLower := strings.ToLower(strings.TrimSpace(entity))
-		if entityLower == "" {
-			continue
-		}
-		entityTokens := strings.Fields(entityLower)
-
-		// Check phonetic overlap between input tokens and entity tokens.
-		entityCodes := codesForTokens(entityTokens)
-		phoneticMatch := codesOverlap(inputCodes, entityCodes)
-
-		// Compute the best Jaro-Winkler score for this entity using several
-		// comparison strategies to handle multi-word mismatches robustly.
-		jwScore := bestJWScore(wordTokens, entityTokens, wordLower, entityLower)
-
-		if phoneticMatch {
-			if jwScore >= m.phoneticThreshold {
-				if !best.phonetic || jwScore > best.score {
-					best = candidate{entity: entity, score: jwScore, phonetic: true}
-				}
-			}
-		} else if !best.phonetic {
-			if jwScore >= m.fuzzyThreshold && jwScore > best.score {
-				best = candidate{entity: entity, score: jwScore, phonetic: false}
-			}
-		}
-	}
-
-	if best.entity != "" {
-		return best.entity, best.score, true
-	}
-	return word, 0, false
+	return m.MatchPrepared(word, PrepareEntities(entities))
 }
 
 // codesForTokens returns the union of all Double Metaphone codes for the
