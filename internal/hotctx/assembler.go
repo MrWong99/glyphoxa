@@ -14,6 +14,7 @@ package hotctx
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -187,44 +188,72 @@ func (a *Assembler) buildSceneContext(ctx context.Context, npcID string) (*Scene
 	}
 
 	var locationID string
+	var questTargetIDs []string
+
 	for _, r := range rels {
 		switch r.RelType {
 		case "LOCATED_AT":
 			locationID = r.TargetID
-
 		case "QUEST_GIVER", "PARTICIPATED_IN":
-			// Only include if the target entity is of type "quest".
-			entity, err := a.graph.GetEntity(ctx, r.TargetID)
-			if err != nil {
-				return nil, fmt.Errorf("get quest entity %q: %w", r.TargetID, err)
-			}
-			if entity != nil && entity.Type == "quest" {
-				sc.ActiveQuests = append(sc.ActiveQuests, *entity)
-			}
+			questTargetIDs = append(questTargetIDs, r.TargetID)
 		}
 	}
 
-	if locationID != "" {
-		loc, err := a.graph.GetEntity(ctx, locationID)
-		if err != nil {
-			return nil, fmt.Errorf("get location entity %q: %w", locationID, err)
-		}
-		sc.Location = loc
+	eg, egCtx := errgroup.WithContext(ctx)
 
-		// Find other entities present at the same location (1-hop neighbours of
-		// the location node that have a LOCATED_AT edge pointing to it).
-		neighbours, err := a.graph.Neighbors(ctx, locationID, 1,
-			memory.TraverseRelTypes("LOCATED_AT"),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("get neighbours of location %q: %w", locationID, err)
-		}
-		for _, n := range neighbours {
-			// Exclude the NPC itself.
-			if n.ID != npcID {
-				sc.PresentNPCs = append(sc.PresentNPCs, n)
+	// Fetch quest entities concurrently.
+	var questMu sync.Mutex
+	for _, id := range questTargetIDs {
+		id := id // capture
+		eg.Go(func() error {
+			entity, err := a.graph.GetEntity(egCtx, id)
+			if err != nil {
+				return fmt.Errorf("get quest entity %q: %w", id, err)
 			}
-		}
+			if entity != nil && entity.Type == "quest" {
+				questMu.Lock()
+				sc.ActiveQuests = append(sc.ActiveQuests, *entity)
+				questMu.Unlock()
+			}
+			return nil
+		})
+	}
+
+	// Fetch location and its neighbours concurrently with quests.
+	if locationID != "" {
+		eg.Go(func() error {
+			loc, err := a.graph.GetEntity(egCtx, locationID)
+			if err != nil {
+				return fmt.Errorf("get location entity %q: %w", locationID, err)
+			}
+			sc.Location = loc
+
+			// Find other entities present at the same location (1-hop neighbours of
+			// the location node that have a LOCATED_AT edge pointing to it).
+			neighbours, err := a.graph.Neighbors(egCtx, locationID, 1,
+				memory.TraverseRelTypes("LOCATED_AT"),
+			)
+			if err != nil {
+				return fmt.Errorf("get neighbours of location %q: %w", locationID, err)
+			}
+			var present []memory.Entity
+			for _, n := range neighbours {
+				if n.ID != npcID {
+					present = append(present, n)
+				}
+			}
+			// Location goroutine is the only writer to sc.Location and
+			// sc.PresentNPCs, so no mutex needed.
+			if present == nil {
+				present = []memory.Entity{}
+			}
+			sc.PresentNPCs = present
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
 
 	return sc, nil

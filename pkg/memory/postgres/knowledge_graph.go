@@ -185,7 +185,11 @@ func (s *Store) AddRelationship(ctx context.Context, rel memory.Relationship) er
 // [memory.WithIncoming] to include inbound edges and [memory.WithRelTypes] to
 // filter by edge type.
 func (s *Store) GetRelationships(ctx context.Context, entityID string, opts ...memory.RelQueryOpt) ([]memory.Relationship, error) {
-	relTypes, dirIn, dirOut, limit := memory.ApplyRelQueryOpts(opts)
+	params := memory.ApplyRelQueryOpts(opts)
+	dirIn := params.DirectionIn
+	dirOut := params.DirectionOut
+	relTypes := params.RelTypes
+	limit := params.Limit
 
 	// Default: outgoing only when neither direction is explicitly set.
 	if !dirIn && !dirOut {
@@ -260,7 +264,10 @@ func (s *Store) DeleteRelationship(ctx context.Context, sourceID, targetID, relT
 // [memory.TraversalOpt] options can restrict which edge or node types are followed
 // and cap the result set size.
 func (s *Store) Neighbors(ctx context.Context, entityID string, depth int, opts ...memory.TraversalOpt) ([]memory.Entity, error) {
-	relTypes, nodeTypes, maxNodes := memory.ApplyTraversalOpts(opts)
+	tparams := memory.ApplyTraversalOpts(opts)
+	relTypes := tparams.RelTypes
+	nodeTypes := tparams.NodeTypes
+	maxNodes := tparams.MaxNodes
 
 	var args []any
 	next := func(v any) string {

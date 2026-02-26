@@ -41,7 +41,7 @@ func run() int {
 
 	slog.Info("glyphoxa starting",
 		"config", *configPath,
-		"listen_addr", cfg.Server.LogLevel,
+		"listen_addr", cfg.Server.ListenAddr,
 		"log_level", cfg.Server.LogLevel,
 	)
 
@@ -75,52 +75,27 @@ func run() int {
 
 // ── Provider wiring ───────────────────────────────────────────────────────────
 
-// builtinProviders lists the provider names that ship with Glyphoxa.
-// The actual factory functions will be filled in as implementations are added.
-var builtinProviders = struct {
-	llm        []string
-	stt        []string
-	tts        []string
-	s2s        []string
-	embeddings []string
-	vad        []string
-	audio      []string
-}{
-	llm:        []string{"openai", "anthropic", "ollama"},
-	stt:        []string{"deepgram", "google", "whisper"},
-	tts:        []string{"elevenlabs", "google", "piper"},
-	s2s:        []string{"openai-realtime"},
-	embeddings: []string{"openai", "cohere"},
-	vad:        []string{"silero", "webrtc"},
-	audio:      []string{"discord"},
+// builtinProviders maps provider category names to the implementations that
+// ship with Glyphoxa. Used for startup logging.
+var builtinProviders = map[string][]string{
+	"llm":        {"openai", "anthropic", "ollama"},
+	"stt":        {"deepgram", "google", "whisper"},
+	"tts":        {"elevenlabs", "google", "piper"},
+	"s2s":        {"openai-realtime"},
+	"embeddings": {"openai", "cohere"},
+	"vad":        {"silero", "webrtc"},
+	"audio":      {"discord"},
 }
 
 // registerBuiltinProviders prints the registered names as a placeholder.
 // Real factory functions will be added when provider packages are implemented.
 func registerBuiltinProviders(reg *config.Registry) {
-	for _, name := range builtinProviders.llm {
-		n := name // capture for closure
-		slog.Debug("registered LLM provider", "name", n)
-		// reg.RegisterLLM(n, openai.NewProvider) — wired in Phase 2
+	for kind, names := range builtinProviders {
+		for _, name := range names {
+			slog.Debug("registered provider", "kind", kind, "name", name)
+		}
 	}
-	for _, name := range builtinProviders.stt {
-		slog.Debug("registered STT provider", "name", name)
-	}
-	for _, name := range builtinProviders.tts {
-		slog.Debug("registered TTS provider", "name", name)
-	}
-	for _, name := range builtinProviders.s2s {
-		slog.Debug("registered S2S provider", "name", name)
-	}
-	for _, name := range builtinProviders.embeddings {
-		slog.Debug("registered Embeddings provider", "name", name)
-	}
-	for _, name := range builtinProviders.vad {
-		slog.Debug("registered VAD provider", "name", name)
-	}
-	for _, name := range builtinProviders.audio {
-		slog.Debug("registered Audio provider", "name", name)
-	}
+	_ = reg // wired in Phase 3
 }
 
 // providerSet holds the instantiated providers for this run.

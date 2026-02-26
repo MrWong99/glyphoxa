@@ -83,21 +83,18 @@ func (p *PreFetcher) RefreshEntityList(ctx context.Context) error {
 func (p *PreFetcher) ProcessPartial(ctx context.Context, partial string) []memory.Entity {
 	lower := strings.ToLower(partial)
 
-	// Snapshot the name map under read lock to minimise contention.
+	// Identify entity IDs to fetch under a single read lock.
+	// Substring matching is fast (<1ms) so holding the lock is fine.
 	p.mu.RLock()
-	namesCopy := make(map[string]string, len(p.entityNames))
-	for k, v := range p.entityNames {
-		namesCopy[k] = v
-	}
-	p.mu.RUnlock()
-
-	// Identify entity IDs we need to fetch (substring match, skip cache hits).
 	var toFetch []string
-	p.mu.RLock()
-	for name, id := range namesCopy {
+	seen := make(map[string]struct{})
+	for name, id := range p.entityNames {
 		if strings.Contains(lower, name) {
 			if _, cached := p.cache[id]; !cached {
-				toFetch = append(toFetch, id)
+				if _, dup := seen[id]; !dup {
+					toFetch = append(toFetch, id)
+					seen[id] = struct{}{}
+				}
 			}
 		}
 	}
@@ -107,15 +104,34 @@ func (p *PreFetcher) ProcessPartial(ctx context.Context, partial string) []memor
 		return []memory.Entity{}
 	}
 
-	// Fetch the entities (without holding the lock — graph calls can be slow).
-	fetched := make([]*memory.Entity, 0, len(toFetch))
+	// Fetch entities concurrently (bounded to avoid overwhelming the graph store).
+	type fetchResult struct {
+		entity *memory.Entity
+	}
+
+	results := make(chan fetchResult, len(toFetch))
+	var wg sync.WaitGroup
 	for _, id := range toFetch {
-		entity, err := p.graph.GetEntity(ctx, id)
-		if err != nil || entity == nil {
-			// Silently skip — pre-fetch errors must not block the voice path.
-			continue
-		}
-		fetched = append(fetched, entity)
+		wg.Add(1)
+		go func(entityID string) {
+			defer wg.Done()
+			entity, err := p.graph.GetEntity(ctx, entityID)
+			if err != nil || entity == nil {
+				// Silently skip — pre-fetch errors must not block the voice path.
+				return
+			}
+			results <- fetchResult{entity: entity}
+		}(id)
+	}
+	// Close results channel once all goroutines finish.
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	var fetched []*memory.Entity
+	for r := range results {
+		fetched = append(fetched, r.entity)
 	}
 
 	if len(fetched) == 0 {
