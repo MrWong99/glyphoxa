@@ -1,0 +1,157 @@
+# ============================================================
+# Glyphoxa — example configuration
+# Copy this file, rename it to config.yaml, and fill in your
+# API keys and settings before starting the server.
+# ============================================================
+
+# ────────────────────────────────────────────────────────────
+# Server settings
+# ────────────────────────────────────────────────────────────
+server:
+  # TCP address to listen on. ":8080" binds on all interfaces.
+  listen_addr: ":8080"
+
+  # Logging verbosity. One of: debug | info | warn | error
+  log_level: info
+
+# ────────────────────────────────────────────────────────────
+# Provider configuration
+# Each section selects a named provider and supplies its
+# credentials / model selection. Leave a section empty (just
+# the key with no sub-keys) to disable that pipeline stage.
+# ────────────────────────────────────────────────────────────
+providers:
+
+  # LLM backend — used for NPC reasoning in cascaded mode.
+  llm:
+    name: openai          # registered name, e.g. "openai" | "anthropic" | "ollama"
+    api_key: sk-...       # your API key
+    base_url: ""          # override API endpoint (optional)
+    model: gpt-4o         # model name
+    options:
+      max_tokens: 1024
+
+  # Speech-to-Text — transcribes player audio.
+  stt:
+    name: deepgram
+    api_key: dg-...
+    model: nova-2
+    options:
+      language: en-US
+
+  # Text-to-Speech — synthesises NPC responses.
+  tts:
+    name: elevenlabs
+    api_key: el-...
+    model: eleven_multilingual_v2
+    options:
+      output_format: pcm_48000
+
+  # Speech-to-Speech — end-to-end voice model (replaces STT+LLM+TTS
+  # when an NPC is configured with engine: s2s).
+  s2s:
+    name: openai-realtime
+    api_key: sk-...
+    model: gpt-4o-realtime-preview
+
+  # Embeddings — used by the memory layer for semantic retrieval.
+  embeddings:
+    name: openai
+    api_key: sk-...
+    model: text-embedding-3-small
+
+  # Voice Activity Detection — decides when a player is speaking.
+  vad:
+    name: silero
+    options:
+      frame_size_ms: 30
+      speech_threshold: 0.5
+      silence_threshold: 0.35
+
+  # Audio platform — connects to a voice channel.
+  audio:
+    name: discord
+    options:
+      guild_id: "123456789012345678"
+
+# ────────────────────────────────────────────────────────────
+# NPC definitions
+# ────────────────────────────────────────────────────────────
+npcs:
+  - name: Greymantle the Sage
+    personality: |
+      You are Greymantle, an ancient and enigmatic wizard who has witnessed the
+      rise and fall of three empires. You speak in measured, slightly archaic
+      sentences and never rush your words. You are helpful but always hint that
+      there is more to know than you are willing to reveal.
+    voice:
+      provider: elevenlabs
+      voice_id: pNInz6obpgDQGcFmaJgB  # "Adam" voice
+      pitch_shift: -2.0                # slightly lower pitch for gravitas
+      speed_factor: 0.85              # speak a touch slower
+    # "cascaded" = STT → LLM → TTS pipeline
+    # "s2s"      = end-to-end speech model
+    engine: cascaded
+    budget_tier: standard   # fast | standard | deep
+    knowledge_scope:
+      - ancient history
+      - arcane magic
+      - forgotten lore
+    tools:
+      - lookup_spell
+      - query_lore_database
+
+  - name: Zara the Merchant
+    personality: |
+      You are Zara, a cheerful halfling merchant who runs a general goods stall.
+      You are always eager to make a deal and speak with a warm, chatty energy.
+      You know the local gossip and are happy to share it — for the right price.
+    voice:
+      provider: elevenlabs
+      voice_id: EXAVITQu4vr4xnSDxMaL  # "Bella" voice
+      pitch_shift: 1.5
+      speed_factor: 1.1
+    engine: s2s
+    budget_tier: fast
+    knowledge_scope:
+      - trade
+      - local rumors
+      - item prices
+    tools:
+      - check_inventory
+      - get_item_price
+
+# ────────────────────────────────────────────────────────────
+# Memory layer (long-term semantic memory via pgvector)
+# ────────────────────────────────────────────────────────────
+memory:
+  # PostgreSQL connection string.  Requires the pgvector extension.
+  postgres_dsn: postgres://glyphoxa:secret@localhost:5432/glyphoxa?sslmode=disable
+
+  # Must match the dimensionality of the configured embeddings model.
+  # OpenAI text-embedding-3-small → 1536
+  # OpenAI text-embedding-3-large → 3072
+  embedding_dimensions: 1536
+
+# ────────────────────────────────────────────────────────────
+# Model Context Protocol (MCP) tool servers
+# ────────────────────────────────────────────────────────────
+mcp:
+  servers:
+    # Stdio server — Glyphoxa spawns the process and communicates via stdin/stdout.
+    - name: local-tools
+      transport: stdio
+      command: /usr/local/bin/mcp-tools --config /etc/mcp-tools.json
+      env:
+        MCP_LOG_LEVEL: info
+        SOME_SECRET: "hunter2"
+
+    # HTTP server — stateless JSON-RPC over HTTP.
+    - name: web-search
+      transport: http
+      url: https://mcp.example.com/search
+
+    # SSE server — streaming HTTP with Server-Sent Events.
+    - name: realtime-events
+      transport: sse
+      url: https://mcp.example.com/events
