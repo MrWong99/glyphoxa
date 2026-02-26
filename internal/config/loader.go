@@ -46,10 +46,8 @@ func Validate(cfg *Config) error {
 	var errs []error
 
 	// Server
-	if cfg.Server.LogLevel != "" {
-		if !isValidLogLevel(cfg.Server.LogLevel) {
-			errs = append(errs, fmt.Errorf("server.log_level %q is invalid; valid values: debug, info, warn, error", cfg.Server.LogLevel))
-		}
+	if cfg.Server.LogLevel != "" && !cfg.Server.LogLevel.IsValid() {
+		errs = append(errs, fmt.Errorf("server.log_level %q is invalid; valid values: debug, info, warn, error", cfg.Server.LogLevel))
 	}
 
 	// NPCs
@@ -58,10 +56,10 @@ func Validate(cfg *Config) error {
 		if npc.Name == "" {
 			errs = append(errs, fmt.Errorf("%s.name is required", prefix))
 		}
-		if npc.Engine != "" && !isValidEngine(npc.Engine) {
+		if npc.Engine != "" && !npc.Engine.IsValid() {
 			errs = append(errs, fmt.Errorf("%s.engine %q is invalid; valid values: cascaded, s2s", prefix, npc.Engine))
 		}
-		if npc.BudgetTier != "" && !isValidBudgetTier(npc.BudgetTier) {
+		if npc.BudgetTier != "" && !npc.BudgetTier.IsValid() {
 			errs = append(errs, fmt.Errorf("%s.budget_tier %q is invalid; valid values: fast, standard, deep", prefix, npc.BudgetTier))
 		}
 		if npc.Voice.SpeedFactor != 0 {
@@ -95,22 +93,3 @@ func Validate(cfg *Config) error {
 	return errors.Join(errs...)
 }
 
-func isValidLogLevel(s string) bool {
-	switch s {
-	case "debug", "info", "warn", "error":
-		return true
-	}
-	return false
-}
-
-func isValidEngine(s string) bool {
-	return s == "cascaded" || s == "s2s"
-}
-
-func isValidBudgetTier(s string) bool {
-	switch s {
-	case "fast", "standard", "deep":
-		return true
-	}
-	return false
-}

@@ -195,14 +195,14 @@ func printProvider(kind, name, model string) {
 
 // ── Logger ─────────────────────────────────────────────────────────────────────
 
-func newLogger(level string) *slog.Logger {
+func newLogger(level config.LogLevel) *slog.Logger {
 	var lvl slog.Level
 	switch level {
-	case "debug":
+	case config.LogDebug:
 		lvl = slog.LevelDebug
-	case "warn":
+	case config.LogWarn:
 		lvl = slog.LevelWarn
-	case "error":
+	case config.LogError:
 		lvl = slog.LevelError
 	default:
 		lvl = slog.LevelInfo

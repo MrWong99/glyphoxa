@@ -87,8 +87,8 @@ func TestLoadFromReader_Valid(t *testing.T) {
 	if cfg.Server.ListenAddr != ":8080" {
 		t.Errorf("server.listen_addr: got %q, want %q", cfg.Server.ListenAddr, ":8080")
 	}
-	if cfg.Server.LogLevel != "info" {
-		t.Errorf("server.log_level: got %q, want %q", cfg.Server.LogLevel, "info")
+	if cfg.Server.LogLevel != config.LogInfo {
+		t.Errorf("server.log_level: got %q, want %q", cfg.Server.LogLevel, config.LogInfo)
 	}
 	if cfg.Providers.LLM.Name != "openai" {
 		t.Errorf("providers.llm.name: got %q, want %q", cfg.Providers.LLM.Name, "openai")

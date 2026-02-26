@@ -2,6 +2,59 @@
 // for the Glyphoxa voice AI system.
 package config
 
+// LogLevel controls log verbosity for the Glyphoxa server.
+type LogLevel string
+
+const (
+	LogDebug LogLevel = "debug"
+	LogInfo  LogLevel = "info"
+	LogWarn  LogLevel = "warn"
+	LogError LogLevel = "error"
+)
+
+// IsValid reports whether l is a recognised log level.
+func (l LogLevel) IsValid() bool {
+	switch l {
+	case LogDebug, LogInfo, LogWarn, LogError:
+		return true
+	}
+	return false
+}
+
+// Engine selects the conversation pipeline mode for an NPC.
+type Engine string
+
+const (
+	// EngineCascaded uses the STT → LLM → TTS pipeline.
+	EngineCascaded Engine = "cascaded"
+
+	// EngineS2S uses an end-to-end speech model.
+	EngineS2S Engine = "s2s"
+)
+
+// IsValid reports whether e is a recognised engine mode.
+func (e Engine) IsValid() bool {
+	return e == EngineCascaded || e == EngineS2S
+}
+
+// BudgetTier constrains which MCP tools are offered to the LLM based on latency.
+type BudgetTier string
+
+const (
+	BudgetTierFast     BudgetTier = "fast"
+	BudgetTierStandard BudgetTier = "standard"
+	BudgetTierDeep     BudgetTier = "deep"
+)
+
+// IsValid reports whether b is a recognised budget tier.
+func (b BudgetTier) IsValid() bool {
+	switch b {
+	case BudgetTierFast, BudgetTierStandard, BudgetTierDeep:
+		return true
+	}
+	return false
+}
+
 // Config is the root configuration structure for Glyphoxa.
 // It is typically loaded from a YAML file using [Load] or [LoadFromReader].
 type Config struct {
@@ -17,8 +70,8 @@ type ServerConfig struct {
 	// ListenAddr is the TCP address the server listens on (e.g., ":8080").
 	ListenAddr string `yaml:"listen_addr"`
 
-	// LogLevel controls verbosity. Valid values: "debug", "info", "warn", "error".
-	LogLevel string `yaml:"log_level"`
+	// LogLevel controls verbosity.
+	LogLevel LogLevel `yaml:"log_level"`
 
 	// TLS configures TLS for the server. When nil, the server runs plain HTTP.
 	TLS *TLSConfig `yaml:"tls"`
@@ -78,8 +131,7 @@ type NPCConfig struct {
 	Voice VoiceConfig `yaml:"voice"`
 
 	// Engine selects the conversation pipeline mode.
-	// Valid values: "cascaded" (STT → LLM → TTS) or "s2s" (end-to-end speech model).
-	Engine string `yaml:"engine"`
+	Engine Engine `yaml:"engine"`
 
 	// KnowledgeScope lists topic domains the NPC is knowledgeable about.
 	// Used for routing player questions and building retrieval queries.
@@ -89,8 +141,7 @@ type NPCConfig struct {
 	Tools []string `yaml:"tools"`
 
 	// BudgetTier constrains which tools are offered to the LLM based on latency.
-	// Valid values: "fast", "standard", "deep".
-	BudgetTier string `yaml:"budget_tier"`
+	BudgetTier BudgetTier `yaml:"budget_tier"`
 }
 
 // VoiceConfig specifies the TTS voice parameters for an NPC.
