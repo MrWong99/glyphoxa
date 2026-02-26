@@ -108,7 +108,7 @@ func formatIdentitySection(e *memory.Entity) string {
 	}
 
 	// Render well-known attributes first, then any extras.
-	wellKnown := []string{"occupation", "appearance", "speaking_style", "personality", "alignment"}
+	wellKnown := []string{memory.AttrOccupation, memory.AttrAppearance, memory.AttrSpeakingStyle, memory.AttrPersonality, memory.AttrAlignment}
 	rendered := make(map[string]bool)
 	for _, k := range wellKnown {
 		if v, ok := e.Attributes[k]; ok {

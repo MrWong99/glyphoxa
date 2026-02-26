@@ -120,6 +120,17 @@ type ChunkResult struct {
 // L3 supporting types
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Well-known entity attribute keys. These are not exhaustive — entities may
+// carry arbitrary keys — but these are recognised by the formatter and other
+// subsystems for special ordering or display treatment.
+const (
+	AttrOccupation   = "occupation"
+	AttrAppearance   = "appearance"
+	AttrSpeakingStyle = "speaking_style"
+	AttrPersonality  = "personality"
+	AttrAlignment    = "alignment"
+)
+
 // Entity represents a named object in the knowledge graph (L3).
 // Entities are typed nodes; their dynamic attributes are stored in a
 // free-form map to accommodate the diversity of tabletop RPG settings.
