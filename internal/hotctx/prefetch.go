@@ -112,16 +112,14 @@ func (p *PreFetcher) ProcessPartial(ctx context.Context, partial string) []memor
 	results := make(chan fetchResult, len(toFetch))
 	var wg sync.WaitGroup
 	for _, id := range toFetch {
-		wg.Add(1)
-		go func(entityID string) {
-			defer wg.Done()
-			entity, err := p.graph.GetEntity(ctx, entityID)
+		wg.Go(func() {
+			entity, err := p.graph.GetEntity(ctx, id)
 			if err != nil || entity == nil {
 				// Silently skip — pre-fetch errors must not block the voice path.
 				return
 			}
 			results <- fetchResult{entity: entity}
-		}(id)
+		})
 	}
 	// Close results channel once all goroutines finish.
 	go func() {
