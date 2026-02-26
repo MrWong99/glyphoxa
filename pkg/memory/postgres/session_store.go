@@ -26,8 +26,8 @@ type SessionStoreImpl struct {
 func (s *SessionStoreImpl) WriteEntry(ctx context.Context, sessionID string, entry memory.TranscriptEntry) error {
 	const q = `
 		INSERT INTO session_entries
-		    (session_id, speaker_id, speaker_name, text, raw_text, is_npc, npc_id, timestamp, duration_ns)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`
+		    (session_id, speaker_id, speaker_name, text, raw_text, npc_id, timestamp, duration_ns)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 
 	_, err := s.pool.Exec(ctx, q,
 		sessionID,
@@ -35,7 +35,6 @@ func (s *SessionStoreImpl) WriteEntry(ctx context.Context, sessionID string, ent
 		entry.SpeakerName,
 		entry.Text,
 		entry.RawText,
-		entry.IsNPC,
 		entry.NPCID,
 		entry.Timestamp,
 		entry.Duration.Nanoseconds(),
@@ -51,7 +50,7 @@ func (s *SessionStoreImpl) WriteEntry(ctx context.Context, sessionID string, ent
 // chronologically (oldest first).
 func (s *SessionStoreImpl) GetRecent(ctx context.Context, sessionID string, duration time.Duration) ([]memory.TranscriptEntry, error) {
 	const q = `
-		SELECT speaker_id, speaker_name, text, raw_text, is_npc, npc_id, timestamp, duration_ns
+		SELECT speaker_id, speaker_name, text, raw_text, npc_id, timestamp, duration_ns
 		FROM   session_entries
 		WHERE  session_id = $1
 		  AND  timestamp  >= now() - ($2::bigint * interval '1 microsecond')
@@ -91,7 +90,7 @@ func (s *SessionStoreImpl) Search(ctx context.Context, query string, opts memory
 		conditions = append(conditions, "speaker_id = "+next(opts.SpeakerID))
 	}
 
-	q := "SELECT speaker_id, speaker_name, text, raw_text, is_npc, npc_id, timestamp, duration_ns\n" +
+	q := "SELECT speaker_id, speaker_name, text, raw_text, npc_id, timestamp, duration_ns\n" +
 		"FROM   session_entries\n" +
 		"WHERE  " + strings.Join(conditions, "\n  AND  ") + "\n" +
 		"ORDER  BY timestamp"
@@ -120,7 +119,6 @@ func collectEntries(rows pgx.Rows) ([]memory.TranscriptEntry, error) {
 			&e.SpeakerName,
 			&e.Text,
 			&e.RawText,
-			&e.IsNPC,
 			&e.NPCID,
 			&e.Timestamp,
 			&durationNS,

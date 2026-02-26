@@ -42,7 +42,6 @@ CREATE TABLE IF NOT EXISTS session_entries (
     speaker_name TEXT         NOT NULL DEFAULT '',
     text         TEXT         NOT NULL,
     raw_text     TEXT         NOT NULL DEFAULT '',
-    is_npc       BOOLEAN      NOT NULL DEFAULT false,
     npc_id       TEXT         NOT NULL DEFAULT '',
     timestamp    TIMESTAMPTZ  NOT NULL DEFAULT now(),
     duration_ns  BIGINT       NOT NULL DEFAULT 0

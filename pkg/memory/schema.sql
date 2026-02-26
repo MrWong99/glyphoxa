@@ -44,10 +44,8 @@ CREATE TABLE IF NOT EXISTS session_entries (
     -- Preserved for debugging and re-correction.
     raw_text        TEXT        NOT NULL DEFAULT '',
 
-    -- is_npc flags entries originating from an AI-controlled NPC agent.
-    is_npc          BOOLEAN     NOT NULL DEFAULT FALSE,
-
-    -- npc_id identifies the NPC agent when is_npc is TRUE.
+    -- npc_id identifies the NPC agent that produced this entry.
+    -- Empty for non-NPC (e.g. player) entries.
     npc_id          TEXT        NOT NULL DEFAULT '',
 
     -- timestamp is the wall-clock time when the utterance was recorded.
@@ -69,7 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_session_entries_speaker
 -- NPC-scoped queries (partial index to keep it lean).
 CREATE INDEX IF NOT EXISTS idx_session_entries_npc
     ON session_entries (npc_id, timestamp DESC)
-    WHERE is_npc = TRUE;
+    WHERE npc_id <> '';
 
 -- Full-text search over corrected transcript text.
 CREATE INDEX IF NOT EXISTS idx_session_entries_text_fts

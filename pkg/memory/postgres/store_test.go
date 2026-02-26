@@ -100,7 +100,6 @@ func TestL1_WriteAndGetRecent(t *testing.T) {
 			SpeakerName: "Alice",
 			Text:        "I approach the blacksmith cautiously.",
 			RawText:     "I approach the blacksmith cautiously.",
-			IsNPC:       false,
 			Timestamp:   now.Add(-10 * time.Minute),
 			Duration:    2 * time.Second,
 		},
@@ -108,7 +107,6 @@ func TestL1_WriteAndGetRecent(t *testing.T) {
 			SpeakerID:   "npc-grimjaw",
 			SpeakerName: "Grimjaw",
 			Text:        "What do ye want? I am busy forging.",
-			IsNPC:       true,
 			NPCID:       "npc-grimjaw",
 			Timestamp:   now.Add(-9 * time.Minute),
 			Duration:    3 * time.Second,
@@ -173,7 +171,7 @@ func TestL1_Search(t *testing.T) {
 	writeL1Entries(t, ctx, l1, sessionID, []memory.TranscriptEntry{
 		{SpeakerID: "p1", Text: "The dragon hoards treasure in the mountain.", Timestamp: time.Now().Add(-5 * time.Minute)},
 		{SpeakerID: "p2", Text: "We should negotiate with the goblin tribe.", Timestamp: time.Now().Add(-4 * time.Minute)},
-		{SpeakerID: "npc1", IsNPC: true, NPCID: "npc1", Text: "The prophecy speaks of a chosen hero.", Timestamp: time.Now().Add(-3 * time.Minute)},
+		{SpeakerID: "npc1", NPCID: "npc1", Text: "The prophecy speaks of a chosen hero.", Timestamp: time.Now().Add(-3 * time.Minute)},
 	})
 
 	tests := []struct {

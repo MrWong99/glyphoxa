@@ -18,10 +18,8 @@ type TranscriptEntry struct {
 	// RawText is the original uncorrected STT output. Preserved for debugging.
 	RawText string
 
-	// IsNPC indicates whether this entry is from an AI-controlled NPC.
-	IsNPC bool
-
-	// NPCID identifies the NPC agent if IsNPC is true.
+	// NPCID identifies the NPC agent that produced this entry.
+	// Empty for non-NPC (e.g. player) entries.
 	NPCID string
 
 	// Timestamp is when this entry was recorded.
@@ -30,3 +28,6 @@ type TranscriptEntry struct {
 	// Duration is the length of the utterance.
 	Duration time.Duration
 }
+
+// IsNPC reports whether this entry was produced by an NPC agent.
+func (e TranscriptEntry) IsNPC() bool { return e.NPCID != "" }
