@@ -252,7 +252,7 @@ func TestL2_IndexAndSearch(t *testing.T) {
 			Content:   "The blacksmith talks about the missing shipment.",
 			Embedding: []float32{1, 0, 0, 0},
 			SpeakerID: "npc-grimjaw",
-			NPCID:     "entity-grimjaw",
+			EntityID:  "entity-grimjaw",
 			Topic:     "trade",
 			Timestamp: time.Now(),
 		},
@@ -262,7 +262,7 @@ func TestL2_IndexAndSearch(t *testing.T) {
 			Content:   "The dragon guards treasure in the northern caves.",
 			Embedding: []float32{0, 1, 0, 0},
 			SpeakerID: "player-1",
-			NPCID:     "",
+			EntityID:  "",
 			Topic:     "exploration",
 			Timestamp: time.Now(),
 		},
@@ -272,7 +272,7 @@ func TestL2_IndexAndSearch(t *testing.T) {
 			Content:   "The guild master reveals plans for an uprising.",
 			Embedding: []float32{0, 0, 1, 0},
 			SpeakerID: "npc-master",
-			NPCID:     "entity-master",
+			EntityID:  "entity-master",
 			Topic:     "politics",
 			Timestamp: time.Now(),
 		},
@@ -305,8 +305,8 @@ func TestL2_IndexAndSearch(t *testing.T) {
 		t.Errorf("session scope: want [chunk-3], got %v", chunkIDs(scoped))
 	}
 
-	// Filter by NPCID.
-	npcFiltered, err := l2.Search(ctx, []float32{1, 0, 0, 0}, 10, memory.ChunkFilter{NPCID: "entity-grimjaw"})
+	// Filter by EntityID.
+	npcFiltered, err := l2.Search(ctx, []float32{1, 0, 0, 0}, 10, memory.ChunkFilter{EntityID: "entity-grimjaw"})
 	if err != nil {
 		t.Fatalf("Search npc filter: %v", err)
 	}
@@ -782,19 +782,19 @@ func TestGraphRAG_QueryWithContext(t *testing.T) {
 	ctx := context.Background()
 	l2 := store.L2()
 
-	// Create an NPC entity so chunks can join via npc_id.
+	// Create an NPC entity so chunks can join via entity_id.
 	npc := memory.Entity{ID: "rag-npc-1", Type: "npc", Name: "Grimjaw", Attributes: map[string]any{}}
 	mustAddEntity(t, ctx, store, npc)
 
 	// Index chunks associated with the npc entity's ID.
 	for _, c := range []memory.Chunk{
 		{
-			ID: "rag-chunk-1", SessionID: "rag-s1", NPCID: npc.ID,
+			ID: "rag-chunk-1", SessionID: "rag-s1", EntityID: npc.ID,
 			Content:   "The blacksmith has a secret shipment of weapons hidden in the cellar.",
 			Embedding: []float32{1, 0, 0, 0}, Timestamp: time.Now(),
 		},
 		{
-			ID: "rag-chunk-2", SessionID: "rag-s1", NPCID: npc.ID,
+			ID: "rag-chunk-2", SessionID: "rag-s1", EntityID: npc.ID,
 			Content:   "Grimjaw owes money to the thieves guild and fears reprisal.",
 			Embedding: []float32{0, 1, 0, 0}, Timestamp: time.Now(),
 		},

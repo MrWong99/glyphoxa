@@ -204,31 +204,6 @@ func TestCorrector_LLMError(t *testing.T) {
 	}
 }
 
-func TestCorrector_WithModel(t *testing.T) {
-	t.Parallel()
-
-	provider := &mock.Provider{
-		CompleteResponse: &llm.CompletionResponse{
-			Content: `{"corrected_text": "hello", "corrections": []}`,
-		},
-	}
-	c := llmcorrect.New(provider, llmcorrect.WithModel("gpt-4o-mini"))
-
-	_, _, err := c.Correct(context.Background(), "hello", []string{"Eldrinax"}, nil)
-	if err != nil {
-		t.Fatalf("Correct returned error: %v", err)
-	}
-
-	if len(provider.CompleteCalls) == 0 {
-		t.Fatal("no Complete calls recorded")
-	}
-	req := provider.CompleteCalls[0].Req
-	// Model directive should appear in the system prompt.
-	if !strings.Contains(req.SystemPrompt, "gpt-4o-mini") {
-		t.Errorf("system prompt does not contain model directive; prompt:\n%s", req.SystemPrompt)
-	}
-}
-
 func TestCorrector_WithTemperature(t *testing.T) {
 	t.Parallel()
 

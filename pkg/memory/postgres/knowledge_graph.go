@@ -247,9 +247,14 @@ func (s *Store) DeleteRelationship(ctx context.Context, sourceID, targetID, relT
 	return nil
 }
 
-// Neighbors implements [memory.KnowledgeGraph]. It performs a breadth-first
-// traversal from entityID up to depth hops using a PostgreSQL recursive CTE
-// and returns all reachable entities (the start entity is excluded).
+// Neighbors implements [memory.KnowledgeGraph]. It performs a bidirectional
+// breadth-first traversal from entityID up to depth hops using a PostgreSQL
+// recursive CTE and returns all reachable entities (the start entity is
+// excluded).
+//
+// Bidirectional traversal follows both outgoing (source→target) and incoming
+// (target→source) edges, which is the natural mode for knowledge graph
+// exploration — e.g., "who knows Grimjaw?" requires incoming edges.
 //
 // Cycles are prevented by tracking visited node IDs in a PostgreSQL text array.
 // [memory.TraversalOpt] options can restrict which edge or node types are followed
@@ -276,6 +281,8 @@ func (s *Store) Neighbors(ctx context.Context, entityID string, depth int, opts 
 		nodeTypeFilter = "\n           AND e.type = ANY(" + next(nodeTypes) + "::text[])"
 	}
 
+	// Bidirectional traversal: follow both outgoing (source→target) and
+	// incoming (target→source) edges via a UNION inside the recursive step.
 	q := fmt.Sprintf(`
 		WITH RECURSIVE reachable AS (
 		    SELECT id,
@@ -286,6 +293,7 @@ func (s *Store) Neighbors(ctx context.Context, entityID string, depth int, opts 
 
 		    UNION ALL
 
+		    -- Outgoing edges: source_id = current → follow to target_id
 		    SELECT e.id,
 		           r.visited || e.id,
 		           r.depth + 1
@@ -294,13 +302,26 @@ func (s *Store) Neighbors(ctx context.Context, entityID string, depth int, opts 
 		    JOIN   entities      e   ON e.id = rel.target_id
 		    WHERE  r.depth < %s
 		      AND  NOT (e.id = ANY(r.visited))%s%s
+
+		    UNION ALL
+
+		    -- Incoming edges: target_id = current → follow to source_id
+		    SELECT e.id,
+		           r.visited || e.id,
+		           r.depth + 1
+		    FROM   reachable r
+		    JOIN   relationships rel ON rel.target_id = r.id
+		    JOIN   entities      e   ON e.id = rel.source_id
+		    WHERE  r.depth < %s
+		      AND  NOT (e.id = ANY(r.visited))%s%s
 		)
 		SELECT DISTINCT ON (e.id)
 		       e.id, e.type, e.name, e.attributes, e.created_at, e.updated_at
 		FROM   reachable rc
 		JOIN   entities  e  ON e.id = rc.id
 		WHERE  rc.id != %s
-		ORDER  BY e.id`, startArg, depthArg, relTypeFilter, nodeTypeFilter, startArg)
+		ORDER  BY e.id`, startArg, depthArg, relTypeFilter, nodeTypeFilter,
+		depthArg, relTypeFilter, nodeTypeFilter, startArg)
 
 	if maxNodes > 0 {
 		args = append(args, maxNodes)
@@ -320,11 +341,12 @@ func (s *Store) Neighbors(ctx context.Context, entityID string, depth int, opts 
 
 // FindPath implements [memory.KnowledgeGraph]. It returns the shortest sequence
 // of entities (including fromID and toID) connecting fromID to toID following
-// directed edges, up to maxDepth hops.
+// edges in both directions (bidirectional), up to maxDepth hops.
 //
 // Returns an empty (non-nil) slice when no path exists within maxDepth.
 func (s *Store) FindPath(ctx context.Context, fromID, toID string, maxDepth int) ([]memory.Entity, error) {
 	// The CTE tracks each candidate path as a TEXT[] array.
+	// Bidirectional: follows both outgoing and incoming edges.
 	const q = `
 		WITH RECURSIVE path_search AS (
 		    SELECT id,
@@ -335,12 +357,25 @@ func (s *Store) FindPath(ctx context.Context, fromID, toID string, maxDepth int)
 
 		    UNION ALL
 
+		    -- Outgoing edges
 		    SELECT e.id,
 		           ps.path || e.id,
 		           ps.depth + 1
 		    FROM   path_search ps
 		    JOIN   relationships rel ON rel.source_id = ps.id
 		    JOIN   entities      e   ON e.id = rel.target_id
+		    WHERE  ps.depth < $3
+		      AND  NOT (e.id = ANY(ps.path))
+
+		    UNION ALL
+
+		    -- Incoming edges
+		    SELECT e.id,
+		           ps.path || e.id,
+		           ps.depth + 1
+		    FROM   path_search ps
+		    JOIN   relationships rel ON rel.target_id = ps.id
+		    JOIN   entities      e   ON e.id = rel.source_id
 		    WHERE  ps.depth < $3
 		      AND  NOT (e.id = ANY(ps.path))
 		)
@@ -457,7 +492,7 @@ func (s *Store) IdentitySnapshot(ctx context.Context, npcID string) (*memory.NPC
 // — both stored in the same PostgreSQL instance — in a single SQL round-trip.
 //
 // The query uses PostgreSQL full-text search (ts_rank) against chunk content,
-// scoped to chunks whose npc_id is in graphScope (or all chunks when graphScope
+// scoped to chunks whose entity_id is in graphScope (or all chunks when graphScope
 // is empty). Results are returned ranked by descending relevance score.
 func (s *Store) QueryWithContext(ctx context.Context, query string, graphScope []string) ([]memory.ContextResult, error) {
 	var args []any
@@ -470,7 +505,7 @@ func (s *Store) QueryWithContext(ctx context.Context, query string, graphScope [
 
 	scopeFilter := ""
 	if len(graphScope) > 0 {
-		scopeFilter = "\n  AND  c.npc_id = ANY(" + next(graphScope) + "::text[])"
+		scopeFilter = "\n  AND  c.entity_id = ANY(" + next(graphScope) + "::text[])"
 	}
 
 	q := fmt.Sprintf(`
@@ -479,7 +514,7 @@ func (s *Store) QueryWithContext(ctx context.Context, query string, graphScope [
 		       ts_rank(to_tsvector('english', c.content),
 		               plainto_tsquery('english', %s)) AS score
 		FROM   chunks  c
-		JOIN   entities e ON e.id = c.npc_id
+		JOIN   entities e ON e.id = c.entity_id
 		WHERE  to_tsvector('english', c.content) @@ plainto_tsquery('english', %s)%s
 		ORDER  BY score DESC
 		LIMIT  20`, queryArg, queryArg, scopeFilter)
@@ -541,7 +576,7 @@ func (s *Store) QueryWithEmbedding(ctx context.Context, embedding []float32, top
 
 	scopeFilter := ""
 	if len(graphScope) > 0 {
-		scopeFilter = "\n  AND  c.npc_id = ANY(" + next(graphScope) + "::text[])"
+		scopeFilter = "\n  AND  c.entity_id = ANY(" + next(graphScope) + "::text[])"
 	}
 
 	args = append(args, topK)
@@ -552,7 +587,7 @@ func (s *Store) QueryWithEmbedding(ctx context.Context, embedding []float32, top
 		       c.content,
 		       c.embedding <=> $1 AS distance
 		FROM   chunks  c
-		JOIN   entities e ON e.id = c.npc_id
+		JOIN   entities e ON e.id = c.entity_id
 		WHERE  c.embedding IS NOT NULL%s
 		ORDER  BY distance
 		LIMIT  %s`, scopeFilter, limitArg)

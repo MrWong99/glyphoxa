@@ -81,16 +81,6 @@ type llmResponse struct {
 // Option is a functional option for configuring a [Corrector].
 type Option func(*Corrector)
 
-// WithModel overrides the LLM model used for correction. When not set, the
-// provider's default model is used (determined by the [llm.Provider]
-// implementation). The model name is surfaced via a leading directive in the
-// system prompt so provider-agnostic implementations can honour it.
-func WithModel(model string) Option {
-	return func(c *Corrector) {
-		c.model = model
-	}
-}
-
 // WithTemperature sets the LLM sampling temperature. Lower values produce
 // more deterministic corrections. Default: 0.1.
 func WithTemperature(temp float64) Option {
@@ -101,9 +91,12 @@ func WithTemperature(temp float64) Option {
 
 // Corrector uses an [llm.Provider] to correct entity name misspellings in
 // transcript text. It is safe for concurrent use.
+//
+// Model selection follows the one-provider-per-model pattern: to use a
+// specific model for correction, construct the [llm.Provider] with that
+// model configured, rather than overriding per-request.
 type Corrector struct {
 	llm         llm.Provider
-	model       string
 	temperature float64
 }
 
@@ -139,7 +132,7 @@ func (c *Corrector) Correct(
 		return text, nil, nil
 	}
 
-	sysPrompt := buildSystemPrompt(entities, c.model)
+	sysPrompt := buildSystemPrompt(entities)
 
 	userMsg := text
 	if len(lowConfidenceSpans) > 0 {
@@ -172,20 +165,15 @@ func (c *Corrector) Correct(
 	return corrected, corrections, nil
 }
 
-// buildSystemPrompt formats the system prompt template with the entity list
-// and an optional model directive prepended when model is non-empty.
-func buildSystemPrompt(entities []string, model string) string {
+// buildSystemPrompt formats the system prompt template with the entity list.
+func buildSystemPrompt(entities []string) string {
 	var sb strings.Builder
 	for _, e := range entities {
 		sb.WriteString("- ")
 		sb.WriteString(e)
 		sb.WriteByte('\n')
 	}
-	prompt := fmt.Sprintf(systemPromptTemplate, sb.String())
-	if model != "" {
-		prompt = fmt.Sprintf("[model:%s]\n%s", model, prompt)
-	}
-	return prompt
+	return fmt.Sprintf(systemPromptTemplate, sb.String())
 }
 
 // parseResponse attempts to unmarshal the LLM output into an [llmResponse].

@@ -77,8 +77,9 @@ type Chunk struct {
 	// SpeakerID identifies who produced this chunk.
 	SpeakerID string
 
-	// NPCID is the NPC context associated with this chunk, if any.
-	NPCID string
+	// EntityID is the knowledge-graph entity associated with this chunk
+	// (NPC, location, item, etc.). Used for GraphRAG scoping.
+	EntityID string
 
 	// Topic is an optional coarse topic label (e.g., "quest", "trade", "lore").
 	Topic string
@@ -96,8 +97,8 @@ type ChunkFilter struct {
 	// SpeakerID restricts results to chunks produced by a specific speaker.
 	SpeakerID string
 
-	// NPCID restricts results to chunks associated with a specific NPC.
-	NPCID string
+	// EntityID restricts results to chunks associated with a specific entity.
+	EntityID string
 
 	// After filters chunks recorded after this instant (exclusive).
 	After time.Time

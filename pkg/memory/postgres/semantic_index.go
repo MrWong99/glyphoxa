@@ -27,14 +27,14 @@ type SemanticIndexImpl struct {
 func (s *SemanticIndexImpl) IndexChunk(ctx context.Context, chunk memory.Chunk) error {
 	const q = `
 		INSERT INTO chunks
-		    (id, session_id, content, embedding, speaker_id, npc_id, topic, timestamp)
+		    (id, session_id, content, embedding, speaker_id, entity_id, topic, timestamp)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		ON CONFLICT (id) DO UPDATE SET
 		    session_id  = EXCLUDED.session_id,
 		    content     = EXCLUDED.content,
 		    embedding   = EXCLUDED.embedding,
 		    speaker_id  = EXCLUDED.speaker_id,
-		    npc_id      = EXCLUDED.npc_id,
+		    entity_id   = EXCLUDED.entity_id,
 		    topic       = EXCLUDED.topic,
 		    timestamp   = EXCLUDED.timestamp`
 
@@ -45,7 +45,7 @@ func (s *SemanticIndexImpl) IndexChunk(ctx context.Context, chunk memory.Chunk) 
 		chunk.Content,
 		vec,
 		chunk.SpeakerID,
-		chunk.NPCID,
+		chunk.EntityID,
 		chunk.Topic,
 		chunk.Timestamp,
 	)
@@ -76,8 +76,8 @@ func (s *SemanticIndexImpl) Search(ctx context.Context, embedding []float32, top
 	if filter.SpeakerID != "" {
 		conditions = append(conditions, "speaker_id = "+next(filter.SpeakerID))
 	}
-	if filter.NPCID != "" {
-		conditions = append(conditions, "npc_id = "+next(filter.NPCID))
+	if filter.EntityID != "" {
+		conditions = append(conditions, "entity_id = "+next(filter.EntityID))
 	}
 	if !filter.After.IsZero() {
 		conditions = append(conditions, "timestamp > "+next(filter.After))
@@ -95,7 +95,7 @@ func (s *SemanticIndexImpl) Search(ctx context.Context, embedding []float32, top
 	limitArg := fmt.Sprintf("$%d", len(args))
 
 	q := fmt.Sprintf(`
-		SELECT id, session_id, content, embedding, speaker_id, npc_id, topic, timestamp,
+		SELECT id, session_id, content, embedding, speaker_id, entity_id, topic, timestamp,
 		       embedding <=> $1 AS distance
 		FROM   chunks
 		%s
@@ -118,7 +118,7 @@ func (s *SemanticIndexImpl) Search(ctx context.Context, embedding []float32, top
 			&cr.Chunk.Content,
 			&vec,
 			&cr.Chunk.SpeakerID,
-			&cr.Chunk.NPCID,
+			&cr.Chunk.EntityID,
 			&cr.Chunk.Topic,
 			&cr.Chunk.Timestamp,
 			&cr.Distance,

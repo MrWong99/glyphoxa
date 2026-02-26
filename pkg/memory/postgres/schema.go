@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS chunks (
     content     TEXT         NOT NULL,
     embedding   vector(%d),
     speaker_id  TEXT         NOT NULL DEFAULT '',
-    npc_id      TEXT         NOT NULL DEFAULT '',
+    entity_id   TEXT         NOT NULL DEFAULT '',
     topic       TEXT         NOT NULL DEFAULT '',
     timestamp   TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
