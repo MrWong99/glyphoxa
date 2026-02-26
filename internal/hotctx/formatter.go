@@ -42,39 +42,15 @@ func FormatSystemPrompt(hctx *HotContext, npcPersonality string) string {
 
 	// ── Identity section ──────────────────────────────────────────────────────
 	if hctx.Identity != nil {
-		identSection := formatIdentitySection(&hctx.Identity.Entity)
-		if identSection != "" {
-			sb.WriteString("\n\n## Your Identity\n")
-			sb.WriteString(identSection)
-		}
-
-		// Relationships sub-section
-		if len(hctx.Identity.Relationships) > 0 {
-			relSection := formatRelationshipsSection(hctx.Identity.Relationships, hctx.Identity.RelatedEntities)
-			if relSection != "" {
-				sb.WriteString("\n\n## Your Relationships\n")
-				sb.WriteString(relSection)
-			}
-		}
+		writeIdentitySection(&sb, &hctx.Identity.Entity)
+		writeRelationshipsSection(&sb, hctx.Identity.Relationships, hctx.Identity.RelatedEntities)
 	}
 
 	// ── Scene section ─────────────────────────────────────────────────────────
-	if hctx.SceneContext != nil {
-		sceneSection := formatSceneSection(hctx.SceneContext)
-		if sceneSection != "" {
-			sb.WriteString("\n\n## Current Scene\n")
-			sb.WriteString(sceneSection)
-		}
-	}
+	writeSceneSection(&sb, hctx.SceneContext)
 
 	// ── Recent conversation section ───────────────────────────────────────────
-	if len(hctx.RecentTranscript) > 0 {
-		convoSection := formatTranscriptSection(hctx.RecentTranscript)
-		if convoSection != "" {
-			sb.WriteString("\n\n## Recent Conversation\n")
-			sb.WriteString(convoSection)
-		}
-	}
+	writeTranscriptSection(&sb, hctx.RecentTranscript)
 
 	return sb.String()
 }
@@ -92,19 +68,33 @@ func npcNameFromContext(hctx *HotContext) string {
 	return "an NPC"
 }
 
-// formatIdentitySection renders the NPC entity's core attributes as lines.
-// Returns an empty string when there is nothing meaningful to render.
-func formatIdentitySection(e *memory.Entity) string {
+// writeIdentitySection writes the NPC entity's core attributes directly to sb.
+// Writes nothing when there is nothing meaningful to render.
+func writeIdentitySection(sb *strings.Builder, e *memory.Entity) {
 	if e == nil {
-		return ""
+		return
 	}
-	var lines []string
+
+	hasContent := e.Name != "" || e.Type != "" || len(e.Attributes) > 0
+	if !hasContent {
+		return
+	}
+
+	sb.WriteString("\n\n## Your Identity\n")
+	first := true
+	writeLine := func(format string, args ...any) {
+		if !first {
+			sb.WriteByte('\n')
+		}
+		fmt.Fprintf(sb, format, args...)
+		first = false
+	}
 
 	if e.Name != "" {
-		lines = append(lines, fmt.Sprintf("Name: %s", e.Name))
+		writeLine("Name: %s", e.Name)
 	}
 	if e.Type != "" {
-		lines = append(lines, fmt.Sprintf("Type: %s", e.Type))
+		writeLine("Type: %s", e.Type)
 	}
 
 	// Render well-known attributes first, then any extras.
@@ -112,24 +102,22 @@ func formatIdentitySection(e *memory.Entity) string {
 	rendered := make(map[string]bool)
 	for _, k := range wellKnown {
 		if v, ok := e.Attributes[k]; ok {
-			lines = append(lines, fmt.Sprintf("%s: %v", k, v))
+			writeLine("%s: %v", k, v)
 			rendered[k] = true
 		}
 	}
 	for k, v := range e.Attributes {
 		if !rendered[k] {
-			lines = append(lines, fmt.Sprintf("%s: %v", k, v))
+			writeLine("%s: %v", k, v)
 		}
 	}
-
-	return strings.Join(lines, "\n")
 }
 
-// formatRelationshipsSection renders a human-readable list of NPC relationships
-// using the provided related-entity lookup slice.
-func formatRelationshipsSection(rels []memory.Relationship, relatedEntities []memory.Entity) string {
+// writeRelationshipsSection writes a human-readable list of NPC relationships
+// directly to sb using the provided related-entity lookup slice.
+func writeRelationshipsSection(sb *strings.Builder, rels []memory.Relationship, relatedEntities []memory.Entity) {
 	if len(rels) == 0 {
-		return ""
+		return
 	}
 
 	// Build ID → entity lookup for O(1) access.
@@ -138,14 +126,17 @@ func formatRelationshipsSection(rels []memory.Relationship, relatedEntities []me
 		lookup[e.ID] = e
 	}
 
-	var lines []string
-	for _, r := range rels {
+	sb.WriteString("\n\n## Your Relationships\n")
+	for i, r := range rels {
+		if i > 0 {
+			sb.WriteByte('\n')
+		}
 		// Use TargetID for outgoing relationships, SourceID for incoming.
 		peerID := r.TargetID
 		peer, ok := lookup[peerID]
 		if !ok {
 			// Peer entity not in lookup; render with just the ID.
-			lines = append(lines, fmt.Sprintf("You know entity %s. Your relationship: %s", peerID, r.RelType))
+			fmt.Fprintf(sb, "You know entity %s. Your relationship: %s", peerID, r.RelType)
 			continue
 		}
 		peerType := peer.Type
@@ -153,33 +144,43 @@ func formatRelationshipsSection(rels []memory.Relationship, relatedEntities []me
 			peerType = "entity"
 		}
 
-		desc := fmt.Sprintf("You know %s (a %s). Your relationship: %s", peer.Name, peerType, r.RelType)
+		fmt.Fprintf(sb, "You know %s (a %s). Your relationship: %s", peer.Name, peerType, r.RelType)
 
 		// Optionally include a relationship description attribute.
 		if d, ok := r.Attributes["description"]; ok {
-			desc += fmt.Sprintf(" — %v", d)
+			fmt.Fprintf(sb, " — %v", d)
 		}
-		lines = append(lines, desc)
 	}
-
-	return strings.Join(lines, "\n")
 }
 
-// formatSceneSection renders location, present entities, and active quests.
-// Returns an empty string when none of those sub-sections have content.
-func formatSceneSection(sc *SceneContext) string {
+// writeSceneSection writes location, present entities, and active quests
+// directly to sb. Writes nothing when none of those sub-sections have content.
+func writeSceneSection(sb *strings.Builder, sc *SceneContext) {
 	if sc == nil {
-		return ""
+		return
 	}
 
-	var lines []string
+	hasContent := sc.Location != nil || len(sc.PresentEntities) > 0 || len(sc.ActiveQuests) > 0
+	if !hasContent {
+		return
+	}
+
+	sb.WriteString("\n\n## Current Scene\n")
+	first := true
+	writeLine := func(format string, args ...any) {
+		if !first {
+			sb.WriteByte('\n')
+		}
+		fmt.Fprintf(sb, format, args...)
+		first = false
+	}
 
 	if sc.Location != nil {
-		locLine := fmt.Sprintf("Location: %s", sc.Location.Name)
 		if desc, ok := sc.Location.Attributes["description"]; ok {
-			locLine += fmt.Sprintf(" - %v", desc)
+			writeLine("Location: %s - %v", sc.Location.Name, desc)
+		} else {
+			writeLine("Location: %s", sc.Location.Name)
 		}
-		lines = append(lines, locLine)
 	}
 
 	if len(sc.PresentEntities) > 0 {
@@ -191,7 +192,7 @@ func formatSceneSection(sc *SceneContext) string {
 			}
 			names = append(names, fmt.Sprintf("%s (%s)", e.Name, t))
 		}
-		lines = append(lines, fmt.Sprintf("Also present: %s", strings.Join(names, ", ")))
+		writeLine("Also present: %s", strings.Join(names, ", "))
 	}
 
 	if len(sc.ActiveQuests) > 0 {
@@ -203,22 +204,23 @@ func formatSceneSection(sc *SceneContext) string {
 			}
 			questParts = append(questParts, entry)
 		}
-		lines = append(lines, fmt.Sprintf("Active quests: %s", strings.Join(questParts, ", ")))
+		writeLine("Active quests: %s", strings.Join(questParts, ", "))
 	}
-
-	return strings.Join(lines, "\n")
 }
 
-// formatTranscriptSection renders the recent conversation with relative
-// timestamps (e.g., "2m ago") and speaker labels.
-func formatTranscriptSection(entries []memory.TranscriptEntry) string {
+// writeTranscriptSection writes the recent conversation with relative
+// timestamps (e.g., "2m ago") and speaker labels directly to sb.
+func writeTranscriptSection(sb *strings.Builder, entries []memory.TranscriptEntry) {
 	if len(entries) == 0 {
-		return ""
+		return
 	}
 
+	sb.WriteString("\n\n## Recent Conversation\n")
 	now := time.Now()
-	var lines []string
-	for _, e := range entries {
+	for i, e := range entries {
+		if i > 0 {
+			sb.WriteByte('\n')
+		}
 		speaker := e.SpeakerName
 		if speaker == "" {
 			speaker = e.SpeakerID
@@ -228,10 +230,8 @@ func formatTranscriptSection(entries []memory.TranscriptEntry) string {
 		}
 
 		relTime := formatRelativeTime(now.Sub(e.Timestamp))
-		lines = append(lines, fmt.Sprintf("[%s] %s: %s", relTime, speaker, e.Text))
+		fmt.Fprintf(sb, "[%s] %s: %s", relTime, speaker, e.Text)
 	}
-
-	return strings.Join(lines, "\n")
 }
 
 // formatRelativeTime converts a duration to a compact human-readable label
