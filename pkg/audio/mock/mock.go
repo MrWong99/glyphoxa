@@ -145,7 +145,7 @@ func (p *Platform) Connect(_ context.Context, channelID string) (audio.Connectio
 // EnqueueCall records the arguments of a single [Mixer.Enqueue] invocation.
 type EnqueueCall struct {
 	// Segment is the audio segment passed to Enqueue.
-	Segment audio.AudioSegment
+	Segment *audio.AudioSegment
 	// Priority is the priority argument passed to Enqueue.
 	Priority int
 }
@@ -183,7 +183,7 @@ type Mixer struct {
 }
 
 // Enqueue implements [audio.Mixer]. Records the call arguments.
-func (m *Mixer) Enqueue(segment audio.AudioSegment, priority int) {
+func (m *Mixer) Enqueue(segment *audio.AudioSegment, priority int) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.EnqueueCalls = append(m.EnqueueCalls, EnqueueCall{Segment: segment, Priority: priority})

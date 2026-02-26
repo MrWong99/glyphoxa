@@ -1,6 +1,9 @@
 package audio
 
-import "time"
+import (
+	"sync/atomic"
+	"time"
+)
 
 // InterruptReason identifies why the current audio segment was cut short.
 // It is passed to [Mixer.Interrupt] so that the mixer can apply
@@ -38,13 +41,36 @@ type AudioSegment struct {
 	NPCID string
 
 	// Audio is a read-only channel of raw audio bytes (e.g., Opus packets or
-	// PCM chunks). The channel is closed by the producer when the segment ends.
+	// PCM chunks). The channel is closed by the producer when the segment ends
+	// or when a mid-stream error occurs. After the channel closes, call
+	// [AudioSegment.Err] to check whether synthesis completed cleanly.
 	Audio <-chan []byte
 
 	// Priority controls scheduling when multiple segments are queued.
 	// Higher values preempt lower ones. Equal-priority segments are played
 	// in FIFO order.
 	Priority int
+
+	// streamErr stores the error that caused the Audio channel to close early.
+	// Access via Err and SetStreamErr.
+	streamErr atomic.Pointer[error]
+}
+
+// Err returns the error that caused the Audio channel to close prematurely,
+// or nil if the stream completed successfully. Callers should check Err after
+// the Audio channel is closed.
+func (s *AudioSegment) Err() error {
+	if p := s.streamErr.Load(); p != nil {
+		return *p
+	}
+	return nil
+}
+
+// SetStreamErr records a mid-stream error. The producer should call this
+// before closing the Audio channel so that the [Mixer] can distinguish a
+// clean completion from a failure.
+func (s *AudioSegment) SetStreamErr(err error) {
+	s.streamErr.Store(&err)
 }
 
 // Mixer manages the NPC audio output queue and arbitrates between competing
@@ -62,7 +88,7 @@ type Mixer interface {
 	// If a higher-priority segment is already playing, the new segment is
 	// buffered; if the new segment has higher priority than the current one,
 	// the current segment is interrupted with [DMOverride] semantics.
-	Enqueue(segment AudioSegment, priority int)
+	Enqueue(segment *AudioSegment, priority int)
 
 	// Interrupt immediately stops the currently playing segment for the given
 	// reason and advances to the next queued segment (if any). If nothing is

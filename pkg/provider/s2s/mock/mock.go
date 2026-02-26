@@ -148,6 +148,9 @@ type Session struct {
 	// CloseErr, if non-nil, is returned by Close.
 	CloseErr error
 
+	// ErrResult, if non-nil, is returned by Err.
+	ErrResult error
+
 	// --- Call records ---
 
 	// SendAudioCalls records every call to SendAudio in order.
@@ -187,6 +190,13 @@ func (s *Session) Audio() <-chan []byte {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.AudioCh
+}
+
+// Err returns ErrResult.
+func (s *Session) Err() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.ErrResult
 }
 
 // Transcripts returns TranscriptsCh.

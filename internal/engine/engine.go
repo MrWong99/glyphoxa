@@ -19,6 +19,7 @@ package engine
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/MrWong99/glyphoxa/internal/mcp"
 	"github.com/MrWong99/glyphoxa/pkg/audio"
@@ -77,14 +78,37 @@ type Response struct {
 
 	// Audio is a read-only channel that streams raw audio bytes (e.g., Opus
 	// packets or PCM chunks) as they are produced by the TTS stage. The channel
-	// is closed when synthesis completes. Callers must drain the channel even if
-	// they do not use the audio, to avoid blocking the engine's internal pipeline.
+	// is closed when synthesis completes or when a mid-stream error occurs.
+	// After the channel closes, call [Response.Err] to check whether synthesis
+	// completed cleanly. Callers must drain the channel even if they do not use
+	// the audio, to avoid blocking the engine's internal pipeline.
 	Audio <-chan []byte
 
 	// ToolCalls lists any tool invocations the LLM requested during generation.
 	// The orchestrator is responsible for executing them and, if needed, feeding
 	// results back to the engine via a follow-up [VoiceEngine.Process] call.
 	ToolCalls []llm.ToolCall
+
+	// streamErr stores the error that caused the Audio channel to close early.
+	// Access via Err and SetStreamErr.
+	streamErr atomic.Pointer[error]
+}
+
+// Err returns the error that caused the Audio channel to close prematurely,
+// or nil if the stream completed successfully. Callers should check Err after
+// the Audio channel is closed.
+func (r *Response) Err() error {
+	if p := r.streamErr.Load(); p != nil {
+		return *p
+	}
+	return nil
+}
+
+// SetStreamErr records a mid-stream error. The engine goroutine should call
+// this before closing the Audio channel so that callers can distinguish a
+// clean completion from a failure.
+func (r *Response) SetStreamErr(err error) {
+	r.streamErr.Store(&err)
 }
 
 // VoiceEngine handles the complete speech-in / speech-out pipeline for one NPC.

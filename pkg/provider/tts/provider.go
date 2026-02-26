@@ -31,8 +31,11 @@ type Provider interface {
 	// an error if the requested voice is not available.
 	//
 	// Returns a non-nil error only if the stream cannot be started. Errors
-	// encountered during synthesis are signalled by closing the audio channel early;
-	// callers should check ctx.Err() to distinguish cancellation from provider errors.
+	// encountered during synthesis are signalled by closing the audio channel
+	// early. Callers that wrap the returned channel (e.g., engine implementations)
+	// should propagate mid-stream errors via the wrapping type's SetStreamErr
+	// method (see engine.Response or audio.AudioSegment) so that downstream
+	// consumers can distinguish a clean completion from a failure.
 	SynthesizeStream(ctx context.Context, text <-chan string, voice VoiceProfile) (<-chan []byte, error)
 
 	// ListVoices returns all voice profiles available from this provider. The list

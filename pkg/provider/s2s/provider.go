@@ -97,9 +97,16 @@ type SessionHandle interface {
 
 	// Audio returns a read-only channel that emits raw PCM audio byte slices as
 	// the model synthesises its spoken response. The channel is closed when the
-	// session ends. Consumers must drain this channel promptly to prevent backpressure
-	// from stalling the provider's receive loop.
+	// session ends or when a mid-stream error occurs. After the channel closes,
+	// call [SessionHandle.Err] to check whether the session ended cleanly.
+	// Consumers must drain this channel promptly to prevent backpressure from
+	// stalling the provider's receive loop.
 	Audio() <-chan []byte
+
+	// Err returns the error that caused the Audio channel to close prematurely,
+	// or nil if the session ended cleanly. Callers should check Err after the
+	// Audio channel is closed.
+	Err() error
 
 	// Transcripts returns a read-only channel that emits TranscriptEntry values for
 	// both user speech (as recognised by the model) and NPC responses (as generated
