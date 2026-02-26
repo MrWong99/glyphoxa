@@ -137,19 +137,17 @@ func (p *PreFetcher) ProcessPartial(ctx context.Context, partial string) []memor
 	}
 
 	// Store results in cache under write lock.
+	// Also build return slice (only newly fetched entries).
+	result := make([]memory.Entity, 0, len(fetched))
 	p.mu.Lock()
 	for _, e := range fetched {
 		if _, already := p.cache[e.ID]; !already {
 			p.cache[e.ID] = e
 		}
+		result = append(result, *e)
 	}
 	p.mu.Unlock()
 
-	// Build return slice (only newly fetched entries).
-	result := make([]memory.Entity, 0, len(fetched))
-	for _, e := range fetched {
-		result = append(result, *e)
-	}
 	return result
 }
 
