@@ -10,27 +10,6 @@ import (
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm/mock"
 )
 
-// validResponse returns a well-formed LLM JSON response correcting one word.
-func validResponse(correctedText, orig, corr string, confidence float64) string {
-	return `{
-  "corrected_text": "` + correctedText + `",
-  "corrections": [
-    {"original": "` + orig + `", "corrected": "` + corr + `", "confidence": ` + floatStr(confidence) + `}
-  ]
-}`
-}
-
-func floatStr(f float64) string {
-	// Simple representation for test literals.
-	if f == 0.9 {
-		return "0.9"
-	}
-	if f == 0.85 {
-		return "0.85"
-	}
-	return "0.8"
-}
-
 func TestCorrector_CallsLLMWithEntityNames(t *testing.T) {
 	t.Parallel()
 
@@ -73,7 +52,13 @@ func TestCorrector_ParsesJSONCorrections(t *testing.T) {
 
 	provider := &mock.Provider{
 		CompleteResponse: &llm.CompletionResponse{
-			Content: validResponse("Eldrinax guards the Tower of Whispers.", "elder nacks", "Eldrinax", 0.9),
+			Content: `{
+  "corrected_text": "Eldrinax guards the Tower of Whispers.",
+  "corrections": [
+    {"original": "elder nacks", "corrected": "Eldrinax", "confidence": 0.9},
+    {"original": "Wispers", "corrected": "Whispers", "confidence": 0.85}
+  ]
+}`,
 		},
 	}
 	c := llmcorrect.New(provider)
@@ -92,8 +77,8 @@ func TestCorrector_ParsesJSONCorrections(t *testing.T) {
 		t.Errorf("correctedText=%q, want %q", correctedText, "Eldrinax guards the Tower of Whispers.")
 	}
 
-	if len(corrections) != 1 {
-		t.Fatalf("got %d corrections, want 1", len(corrections))
+	if len(corrections) != 2 {
+		t.Fatalf("got %d corrections, want 2", len(corrections))
 	}
 	if corrections[0].Original != "elder nacks" {
 		t.Errorf("corrections[0].Original=%q, want %q", corrections[0].Original, "elder nacks")
@@ -103,6 +88,12 @@ func TestCorrector_ParsesJSONCorrections(t *testing.T) {
 	}
 	if corrections[0].Confidence != 0.9 {
 		t.Errorf("corrections[0].Confidence=%f, want 0.9", corrections[0].Confidence)
+	}
+	if corrections[1].Original != "Wispers" {
+		t.Errorf("corrections[1].Original=%q, want %q", corrections[1].Original, "Wispers")
+	}
+	if corrections[1].Corrected != "Whispers" {
+		t.Errorf("corrections[1].Corrected=%q, want %q", corrections[1].Corrected, "Whispers")
 	}
 }
 
@@ -143,7 +134,7 @@ func TestCorrector_MarkdownStripping(t *testing.T) {
 	// Some models wrap JSON in markdown fences.
 	provider := &mock.Provider{
 		CompleteResponse: &llm.CompletionResponse{
-			Content: "```json\n" + `{"corrected_text": "Eldrinax waits.", "corrections": []}` + "\n```",
+			Content: "```json\n" + `{"corrected_text": "Eldrinax waits.", "corrections": [{"original": "elder nacks", "corrected": "Eldrinax", "confidence": 0.9}]}` + "\n```",
 		},
 	}
 	c := llmcorrect.New(provider)

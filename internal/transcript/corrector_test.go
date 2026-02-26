@@ -13,11 +13,12 @@ import (
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 )
 
-// makeMockLLM creates a mock LLM provider that returns the given corrected text.
-func makeMockLLM(correctedText string) *mock.Provider {
+// makeMockLLM creates a mock LLM provider that returns the given corrected
+// text with a single declared correction.
+func makeMockLLM(correctedText, origWord, corrWord string) *mock.Provider {
 	return &mock.Provider{
 		CompleteResponse: &llm.CompletionResponse{
-			Content: `{"corrected_text": "` + correctedText + `", "corrections": [{"original": "wispers", "corrected": "Whispers", "confidence": 0.9}]}`,
+			Content: `{"corrected_text": "` + correctedText + `", "corrections": [{"original": "` + origWord + `", "corrected": "` + corrWord + `", "confidence": 0.9}]}`,
 		},
 	}
 }
@@ -39,7 +40,7 @@ func TestCorrectionPipeline_BothStages(t *testing.T) {
 	t.Parallel()
 
 	phonMatcher := phonetic.New()
-	mockLLM := makeMockLLM("Eldrinax lives in the Tower of Whispers.")
+	mockLLM := makeMockLLM("Eldrinax lives in the Tower of Whispers.", "elder nacks", "Eldrinax")
 	llmCorrector := llmcorrect.New(mockLLM)
 
 	pipeline := transcript.NewPipeline(

@@ -201,6 +201,8 @@ func parseResponse(content, originalText string) (string, []Correction, error) {
 		})
 	}
 
+	r.CorrectedText, corrections = verifyCorrectedText(originalText, r.CorrectedText, corrections)
+
 	return r.CorrectedText, corrections, nil
 }
 
