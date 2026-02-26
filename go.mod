@@ -3,9 +3,12 @@ module github.com/MrWong99/glyphoxa
 go 1.26
 
 require (
+	github.com/antzucaro/matchr v0.0.0-20221106193745-7bed6ef61ef9
 	github.com/coder/websocket v1.8.14
+	github.com/jackc/pgx/v5 v5.8.0
 	github.com/mozilla-ai/any-llm-go v0.8.0
 	github.com/openai/openai-go v1.12.0
+	github.com/pgvector/pgvector-go v0.3.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -22,6 +25,9 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.4 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
+	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
+	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/ollama/ollama v0.15.4 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
@@ -29,9 +35,11 @@ require (
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
 	github.com/wk8/go-ordered-map/v2 v2.1.8 // indirect
+	github.com/x448/float16 v0.8.4 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	google.golang.org/genai v1.45.0 // indirect
