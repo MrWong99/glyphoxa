@@ -1,5 +1,6 @@
-# Glyphoxa — Docker Compose configuration (cloud providers)
-# Copy this file and fill in your API keys before starting.
+# Glyphoxa — Docker Compose configuration (local stack)
+# Use with: docker compose --profile local up
+# No cloud API keys required.
 
 server:
   listen_addr: ":8080"
@@ -7,28 +8,29 @@ server:
 
 providers:
   llm:
-    name: openai
-    api_key: "CHANGE_ME"
-    model: gpt-4o
+    name: ollama
+    base_url: "http://ollama:11434"
+    model: llama3.2
 
   stt:
-    name: deepgram
-    api_key: "CHANGE_ME"
-    model: nova-2
+    name: whisper
+    base_url: "http://whisper:8080"
+    model: base.en
     options:
-      language: en-US
+      language: en
 
   tts:
-    name: elevenlabs
-    api_key: "CHANGE_ME"
-    model: eleven_multilingual_v2
+    name: coqui
+    base_url: "http://tts:5002"
+    model: tts_models/en/ljspeech/vits
     options:
-      output_format: pcm_48000
+      api_mode: standard
+      language: en
 
   embeddings:
-    name: openai
-    api_key: "CHANGE_ME"
-    model: text-embedding-3-small
+    name: ollama
+    base_url: "http://ollama:11434"
+    model: nomic-embed-text
 
   vad:
     name: silero
@@ -41,7 +43,7 @@ npcs: []
 
 memory:
   postgres_dsn: postgres://glyphoxa:glyphoxa@postgres:5432/glyphoxa?sslmode=disable
-  embedding_dimensions: 1536
+  embedding_dimensions: 768
 
 mcp:
   servers: []

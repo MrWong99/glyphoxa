@@ -32,3 +32,5 @@ Thumbs.db
 
 # Build
 /build/
+glyphoxa
+deployments/compose/config.yaml

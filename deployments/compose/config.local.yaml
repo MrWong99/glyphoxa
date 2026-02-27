@@ -1,5 +1,5 @@
 # Glyphoxa — Docker Compose configuration (local stack)
-# Use with: docker compose --profile local-llm up
+# Use with: docker compose --profile local up
 # No cloud API keys required.
 
 server:
@@ -14,13 +14,18 @@ providers:
 
   stt:
     name: whisper
-    base_url: "http://whisper:9000"
-    model: base
+    base_url: "http://whisper:8080"
+    model: base.en
+    options:
+      language: en
 
   tts:
     name: coqui
     base_url: "http://tts:5002"
-    model: tts_models/multilingual/multi-dataset/xtts_v2
+    model: tts_models/en/ljspeech/vits
+    options:
+      api_mode: standard
+      language: en
 
   embeddings:
     name: ollama

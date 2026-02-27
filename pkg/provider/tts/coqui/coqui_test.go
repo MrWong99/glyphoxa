@@ -190,7 +190,7 @@ func TestSynthesizeStream_MockServer(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := mustNew(t, srv.URL)
+	p := mustNew(t, srv.URL, WithAPIMode(APIModeXTTS))
 	voice := tts.VoiceProfile{ID: "test_speaker", Provider: "coqui"}
 
 	// Send two complete sentences.
@@ -352,7 +352,7 @@ func TestSentenceAccumulation(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := mustNew(t, srv.URL)
+	p := mustNew(t, srv.URL, WithAPIMode(APIModeXTTS))
 	voice := tts.VoiceProfile{ID: "spk"}
 
 	// Deliberately split "Hello world." across three fragments.
@@ -404,7 +404,7 @@ func TestListVoices(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := mustNew(t, srv.URL)
+	p := mustNew(t, srv.URL, WithAPIMode(APIModeXTTS))
 	voices, err := p.ListVoices(context.Background())
 	if err != nil {
 		t.Fatalf("ListVoices: %v", err)
@@ -564,7 +564,7 @@ func TestCloneVoice_MockServer(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	p := mustNew(t, srv.URL)
+	p := mustNew(t, srv.URL, WithAPIMode(APIModeXTTS))
 	samples := [][]byte{
 		buildTestWAV([]byte{0xAA, 0xBB}),
 		buildTestWAV([]byte{0xCC, 0xDD}),
@@ -582,5 +582,222 @@ func TestCloneVoice_MockServer(t *testing.T) {
 	}
 	if profile.Metadata["type"] != "cloned" {
 		t.Errorf("metadata type = %q, want cloned", profile.Metadata["type"])
+	}
+}
+
+// ---- Standard API mode tests ----
+
+func TestSynthesizeStream_StandardAPI(t *testing.T) {
+	t.Parallel()
+
+	// PCM payload: 80 bytes of 0x33.
+	wantPCM := make([]byte, 80)
+	for i := range wantPCM {
+		wantPCM[i] = 0x33
+	}
+	wavData := buildTestWAV(wantPCM)
+
+	var (
+		reqMu    sync.Mutex
+		gotReqs  []*http.Request
+	)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != apiTTSEndpoint {
+			http.NotFound(w, r)
+			return
+		}
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		// Clone request for later inspection (URL is safe to read).
+		reqMu.Lock()
+		gotReqs = append(gotReqs, r)
+		reqMu.Unlock()
+		w.Header().Set("Content-Type", "audio/wav")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(wavData)
+	}))
+	defer srv.Close()
+
+	p := mustNew(t, srv.URL, WithAPIMode(APIModeStandard), WithLanguage("en"))
+	voice := tts.VoiceProfile{ID: "p225", Provider: "coqui"}
+
+	textCh := sendFragments([]string{"Hello world."})
+
+	audioCh, err := p.SynthesizeStream(context.Background(), textCh, voice)
+	if err != nil {
+		t.Fatalf("SynthesizeStream: unexpected error: %v", err)
+	}
+
+	pcm := drainAudio(audioCh)
+
+	if len(pcm) != len(wantPCM) {
+		t.Errorf("total PCM bytes = %d, want %d", len(pcm), len(wantPCM))
+	}
+	for i, b := range pcm {
+		if b != 0x33 {
+			t.Errorf("pcm[%d] = %02x, want 0x33", i, b)
+			break
+		}
+	}
+
+	if len(gotReqs) != 1 {
+		t.Fatalf("server received %d requests, want 1", len(gotReqs))
+	}
+	q := gotReqs[0].URL.Query()
+	if got := q.Get("text"); got != "Hello world." {
+		t.Errorf("query param text = %q, want %q", got, "Hello world.")
+	}
+	if got := q.Get("speaker_id"); got != "p225" {
+		t.Errorf("query param speaker_id = %q, want %q", got, "p225")
+	}
+	if got := q.Get("language_id"); got != "en" {
+		t.Errorf("query param language_id = %q, want %q", got, "en")
+	}
+}
+
+func TestListVoices_StandardAPI(t *testing.T) {
+	t.Parallel()
+
+	t.Run("multi-speaker model", func(t *testing.T) {
+		t.Parallel()
+
+		details := detailsResponse{
+			ModelName: "tts_models/en/vctk/vits",
+			Language:  "en",
+			Speakers:  []string{"p225", "p226", "p227"},
+		}
+		data, _ := json.Marshal(details)
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != detailsEndpoint {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(data)
+		}))
+		defer srv.Close()
+
+		p := mustNew(t, srv.URL, WithAPIMode(APIModeStandard))
+		voices, err := p.ListVoices(context.Background())
+		if err != nil {
+			t.Fatalf("ListVoices: %v", err)
+		}
+
+		if len(voices) != 3 {
+			t.Fatalf("got %d voices, want 3", len(voices))
+		}
+		// Sorted order: p225, p226, p227.
+		wantIDs := []string{"p225", "p226", "p227"}
+		for i, v := range voices {
+			if v.ID != wantIDs[i] {
+				t.Errorf("voices[%d].ID = %q, want %q", i, v.ID, wantIDs[i])
+			}
+			if v.Provider != "coqui" {
+				t.Errorf("voices[%d].Provider = %q, want coqui", i, v.Provider)
+			}
+			if v.Metadata["type"] != "speaker" {
+				t.Errorf("voices[%d] metadata type = %q, want speaker", i, v.Metadata["type"])
+			}
+			if v.Metadata["model_name"] != "tts_models/en/vctk/vits" {
+				t.Errorf("voices[%d] metadata model_name = %q", i, v.Metadata["model_name"])
+			}
+		}
+	})
+
+	t.Run("single-speaker model", func(t *testing.T) {
+		t.Parallel()
+
+		details := detailsResponse{
+			ModelName: "tts_models/en/ljspeech/vits",
+			Language:  "en",
+			Speakers:  nil,
+		}
+		data, _ := json.Marshal(details)
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != detailsEndpoint {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write(data)
+		}))
+		defer srv.Close()
+
+		p := mustNew(t, srv.URL, WithAPIMode(APIModeStandard))
+		voices, err := p.ListVoices(context.Background())
+		if err != nil {
+			t.Fatalf("ListVoices: %v", err)
+		}
+
+		if len(voices) != 1 {
+			t.Fatalf("got %d voices, want 1", len(voices))
+		}
+		if voices[0].ID != "tts_models/en/ljspeech/vits" {
+			t.Errorf("voices[0].ID = %q, want model name", voices[0].ID)
+		}
+		if voices[0].Provider != "coqui" {
+			t.Errorf("voices[0].Provider = %q, want coqui", voices[0].Provider)
+		}
+		if voices[0].Metadata["type"] != "single-speaker" {
+			t.Errorf("voices[0] metadata type = %q, want single-speaker", voices[0].Metadata["type"])
+		}
+	})
+
+	t.Run("server error", func(t *testing.T) {
+		t.Parallel()
+
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "internal error", http.StatusInternalServerError)
+		}))
+		defer srv.Close()
+
+		p := mustNew(t, srv.URL, WithAPIMode(APIModeStandard))
+		_, err := p.ListVoices(context.Background())
+		if err == nil {
+			t.Fatal("expected error on server failure, got nil")
+		}
+		if !strings.Contains(err.Error(), "coqui:") {
+			t.Errorf("error %q missing 'coqui:' prefix", err.Error())
+		}
+	})
+}
+
+func TestCloneVoice_StandardAPI_NotSupported(t *testing.T) {
+	t.Parallel()
+
+	p := mustNew(t, "http://localhost:5002", WithAPIMode(APIModeStandard))
+	_, err := p.CloneVoice(context.Background(), [][]byte{buildTestWAV([]byte{0x01, 0x02})})
+	if err == nil {
+		t.Fatal("expected error for CloneVoice in standard API mode, got nil")
+	}
+	if !strings.Contains(err.Error(), "not supported") {
+		t.Errorf("error %q does not mention 'not supported'", err.Error())
+	}
+	if !strings.Contains(err.Error(), "coqui:") {
+		t.Errorf("error %q missing 'coqui:' prefix", err.Error())
+	}
+}
+
+// TestNew_DefaultAPIMode verifies that the default API mode is APIModeStandard.
+func TestNew_DefaultAPIMode(t *testing.T) {
+	t.Parallel()
+
+	p := mustNew(t, "http://localhost:5002")
+	if p.apiMode != APIModeStandard {
+		t.Errorf("default apiMode = %q, want %q", p.apiMode, APIModeStandard)
+	}
+}
+
+// TestNew_WithAPIMode verifies that WithAPIMode sets the API mode correctly.
+func TestNew_WithAPIMode(t *testing.T) {
+	t.Parallel()
+
+	p := mustNew(t, "http://localhost:8002", WithAPIMode(APIModeXTTS))
+	if p.apiMode != APIModeXTTS {
+		t.Errorf("apiMode = %q, want %q", p.apiMode, APIModeXTTS)
 	}
 }

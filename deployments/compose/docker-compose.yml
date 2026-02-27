@@ -7,19 +7,19 @@
 #   Default (glyphoxa + postgres):
 #     docker compose up
 #
-#   Local LLM stack (adds ollama, whisper, tts):
-#     docker compose --profile local-llm up
+#   Local LLM stack (adds ollama, whisper, coqui-tts):
+#     docker compose --profile local up
 #
-#   Local LLM with local config (no cloud API keys required):
+#   Local stack with local config (no cloud API keys required):
 #     cp config.local.yaml config.yaml
-#     docker compose --profile local-llm up
+#     docker compose --profile local up
 #
+# See README.md for full setup instructions.
 # =============================================================================
 
 services:
   # ---------------------------------------------------------------------------
   # PostgreSQL with pgvector extension
-  # Stores application data and vector embeddings.
   # ---------------------------------------------------------------------------
   postgres:
     image: pgvector/pgvector:pg17
@@ -42,10 +42,11 @@ services:
 
   # ---------------------------------------------------------------------------
   # Glyphoxa application server
-  # Reads its configuration from the bind-mounted config.yaml.
   # ---------------------------------------------------------------------------
   glyphoxa:
-    image: ghcr.io/mrwong99/glyphoxa:main
+    build:
+      context: ../..
+      dockerfile: deployments/compose/Dockerfile
     ports:
       - "8080:8080"
     volumes:
@@ -58,19 +59,6 @@ services:
 
   # ---------------------------------------------------------------------------
   # Ollama — local LLM inference server
-  # Provides chat completion and embedding endpoints.
-  #
-  # GPU acceleration (NVIDIA):
-  #   Uncomment the deploy block below and ensure the NVIDIA Container Toolkit
-  #   is installed on the host.
-  #
-  #   deploy:
-  #     resources:
-  #       reservations:
-  #         devices:
-  #           - driver: nvidia
-  #             count: all
-  #             capabilities: [gpu]
   # ---------------------------------------------------------------------------
   ollama:
     image: ollama/ollama:latest
@@ -79,58 +67,84 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     profiles:
-      - local-llm
+      - local
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
+  # Ollama model bootstrap (runs once)
+  # ---------------------------------------------------------------------------
+  ollama-bootstrap:
+    image: ollama/ollama:latest
+    profiles:
+      - local
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Pulling LLM model..."
+        ollama pull llama3.2
+        echo "Pulling embedding model..."
+        ollama pull nomic-embed-text
+        echo "Models ready."
+    environment:
+      OLLAMA_HOST: "http://ollama:11434"
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
   # Whisper.cpp — local speech-to-text server
-  # Runs whisper-server on container port 8080, mapped to host port 9000
-  # to avoid conflicts with the glyphoxa service.
-  #
-  # GPU acceleration:
-  #   Swap the image tag from "main" to "main-cuda" for NVIDIA GPU support:
-  #     image: ghcr.io/ggml-org/whisper.cpp:main-cuda
+  # Model (ggml-base.en.bin) is included in the image.
+  # For GPU: swap image to ghcr.io/ggml-org/whisper.cpp:main-cuda
   # ---------------------------------------------------------------------------
   whisper:
     image: ghcr.io/ggml-org/whisper.cpp:main
     ports:
       - "9000:8080"
     profiles:
-      - local-llm
-    command: >-
-      whisper-server
-      --host 0.0.0.0
-      --port 8080
-      --model /models/ggml-base.en.bin
-      --convert
-    volumes:
-      - whisper_models:/models
+      - local
+    entrypoint: ["/app/build/bin/whisper-server"]
+    command: ["--host", "0.0.0.0", "--port", "8080", "--model", "/app/models/ggml-base.en.bin", "--convert"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
   # Coqui TTS — local text-to-speech server
-  # Serves the XTTS v2 multilingual model on port 5002.
-  #
-  # GPU acceleration:
-  #   Swap the image to the GPU-enabled variant:
-  #     image: ghcr.io/idiap/coqui-tts
+  # Uses VITS model (fast, lightweight). For XTTS v2 (multilingual, higher
+  # quality, ~2GB download), change to:
+  #   tts_models/multilingual/multi-dataset/xtts_v2
+  # For GPU: swap image to ghcr.io/coqui-ai/tts
   # ---------------------------------------------------------------------------
   tts:
-    image: ghcr.io/idiap/coqui-tts-cpu
+    image: ghcr.io/coqui-ai/tts-cpu
     ports:
       - "5002:5002"
     profiles:
-      - local-llm
-    entrypoint:
-      - tts-server
-      - --model_name
-      - tts_models/multilingual/multi-dataset/xtts_v2
+      - local
+    entrypoint: ["tts-server"]
+    command: ["--model_name", "tts_models/en/ljspeech/vits", "--port", "5002"]
     volumes:
       - tts_models:/root/.local/share/tts
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/')"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
 
 volumes:
   pgdata:
   ollama_data:
-  whisper_models:
   tts_models:

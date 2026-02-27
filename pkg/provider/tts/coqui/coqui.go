@@ -1,17 +1,37 @@
-// Package coqui provides a local Coqui XTTS-backed TTS provider that connects to
-// a Coqui XTTS v2 server via its REST API. It implements the tts.Provider interface.
+// Package coqui provides a local Coqui TTS-backed TTS provider that connects to
+// either a Coqui XTTS v2 server or a standard Coqui TTS server via its REST API.
+// It implements the tts.Provider interface.
 //
-// The Coqui XTTS v2 server is a local HTTP server that exposes a simple REST API
-// for batch speech synthesis. Because XTTS operates in batch mode (one HTTP call
-// per utterance rather than a streaming socket), SynthesizeStream accumulates
-// incoming text fragments into complete sentences and then dispatches concurrent
-// HTTP requests with a small lookahead buffer to minimise perceived latency.
+// Two API modes are supported:
 //
-// Typical usage:
+//   - APIModeStandard (default): targets the standard Coqui TTS server
+//     (ghcr.io/coqui-ai/tts-cpu). Synthesis is performed via GET /api/tts with
+//     URL query parameters; voice catalogue is retrieved from GET /details.
+//
+//   - APIModeXTTS: targets the Coqui XTTS v2 API server. Synthesis is performed
+//     via POST /tts_to_audio/ with a JSON body; voice catalogue is retrieved from
+//     GET /studio_speakers; voice cloning is available via POST /clone_speaker.
+//
+// Because both servers operate in batch mode (one HTTP call per utterance rather
+// than a streaming socket), SynthesizeStream accumulates incoming text fragments
+// into complete sentences and then dispatches concurrent HTTP requests with a
+// small lookahead buffer to minimise perceived latency.
+//
+// Typical usage (standard server):
+//
+//	p := coqui.New("http://localhost:5002",
+//	    coqui.WithLanguage("en"),
+//	    coqui.WithTimeout(15*time.Second),
+//	    // APIModeStandard is the default; this line is optional:
+//	    coqui.WithAPIMode(coqui.APIModeStandard),
+//	)
+//	audio, err := p.SynthesizeStream(ctx, textCh, voiceProfile)
+//
+// Typical usage (XTTS v2 server):
 //
 //	p := coqui.New("http://localhost:8002",
 //	    coqui.WithLanguage("en"),
-//	    coqui.WithTimeout(15*time.Second),
+//	    coqui.WithAPIMode(coqui.APIModeXTTS),
 //	)
 //	audio, err := p.SynthesizeStream(ctx, textCh, voiceProfile)
 package coqui
@@ -26,6 +46,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -46,6 +67,8 @@ const (
 	ttsEndpoint            = "/tts_to_audio/"
 	studioSpeakersEndpoint = "/studio_speakers"
 	cloneSpeakerEndpoint   = "/clone_speaker"
+	apiTTSEndpoint         = "/api/tts"
+	detailsEndpoint        = "/details"
 
 	// sentenceLookaheadBuf controls how many concurrent HTTP synthesis requests
 	// may be in-flight simultaneously. Higher values reduce perceived latency at
@@ -59,20 +82,37 @@ const (
 	pcmChunkSize = 4096
 )
 
+// ---- APIMode ----
+
+// APIMode selects which Coqui server API the provider will target.
+type APIMode string
+
+const (
+	// APIModeXTTS targets the Coqui XTTS v2 API server (/tts_to_audio/).
+	// It supports voice cloning via /clone_speaker and voice listing via
+	// /studio_speakers.
+	APIModeXTTS APIMode = "xtts"
+
+	// APIModeStandard targets the standard Coqui TTS server (/api/tts).
+	// This is the default mode. Voice listing is performed via /details.
+	// Voice cloning is not supported in this mode.
+	APIModeStandard APIMode = "standard"
+)
+
 // ---- options ----
 
 // Option is a functional option for configuring a Coqui Provider.
 type Option func(*Provider)
 
-// WithLanguage sets the BCP-47 language code sent to XTTS (e.g., "en", "de", "fr").
-// Defaults to "en" if not set.
+// WithLanguage sets the BCP-47 language code sent to the TTS server (e.g., "en",
+// "de", "fr"). Defaults to "en" if not set.
 func WithLanguage(lang string) Option {
 	return func(p *Provider) {
 		p.language = lang
 	}
 }
 
-// WithTimeout sets the per-request HTTP timeout for calls to the XTTS server.
+// WithTimeout sets the per-request HTTP timeout for calls to the TTS server.
 // Defaults to 30 s if not set.
 func WithTimeout(d time.Duration) Option {
 	return func(p *Provider) {
@@ -80,19 +120,30 @@ func WithTimeout(d time.Duration) Option {
 	}
 }
 
+// WithAPIMode sets the server API mode. Use APIModeStandard (default) for the
+// standard Coqui TTS Docker image (ghcr.io/coqui-ai/tts-cpu) or APIModeXTTS for
+// the XTTS v2 API server.
+func WithAPIMode(mode APIMode) Option {
+	return func(p *Provider) {
+		p.apiMode = mode
+	}
+}
+
 // ---- Provider ----
 
-// Provider implements tts.Provider backed by a locally-running Coqui XTTS v2 server.
+// Provider implements tts.Provider backed by a locally-running Coqui TTS server.
 // It is safe for concurrent use; multiple SynthesizeStream calls may run in parallel.
 type Provider struct {
 	serverURL  string
 	language   string
 	httpClient *http.Client
+	apiMode    APIMode
 }
 
-// New creates a new Coqui Provider that targets the XTTS server at serverURL
-// (e.g., "http://localhost:8002"). serverURL must be non-empty. Functional
-// options may override the language and per-request timeout.
+// New creates a new Coqui Provider that targets the TTS server at serverURL
+// (e.g., "http://localhost:5002"). serverURL must be non-empty. Functional
+// options may override the language, per-request timeout, and API mode.
+// The default API mode is APIModeStandard.
 func New(serverURL string, opts ...Option) (*Provider, error) {
 	if serverURL == "" {
 		return nil, errors.New("coqui: serverURL must not be empty")
@@ -100,6 +151,7 @@ func New(serverURL string, opts ...Option) (*Provider, error) {
 	p := &Provider{
 		serverURL: strings.TrimRight(serverURL, "/"),
 		language:  defaultLanguage,
+		apiMode:   APIModeStandard,
 		httpClient: &http.Client{
 			Timeout: defaultTimeout,
 		},
@@ -112,7 +164,7 @@ func New(serverURL string, opts ...Option) (*Provider, error) {
 
 // ---- internal request/response types ----
 
-// ttsRequest is the JSON body sent to POST /tts_to_audio/.
+// ttsRequest is the JSON body sent to POST /tts_to_audio/ (XTTS mode).
 type ttsRequest struct {
 	Text       string `json:"text"`
 	SpeakerWav string `json:"speaker_wav"`
@@ -135,11 +187,19 @@ type cloneSpeakerResponse struct {
 	Status string `json:"status,omitempty"`
 }
 
+// detailsResponse is the JSON body returned by GET /details (standard mode).
+// Speakers is nil for single-speaker models and non-nil for multi-speaker models.
+type detailsResponse struct {
+	ModelName string   `json:"model_name"`
+	Language  string   `json:"language"`
+	Speakers  []string `json:"speakers"`
+}
+
 // ---- SynthesizeStream ----
 
 // SynthesizeStream consumes text fragments from the text channel, accumulates them
 // into complete sentences (split on '.', '!', '?' followed by whitespace or EOF),
-// and for each sentence issues a POST /tts_to_audio/ request to the XTTS server.
+// and for each sentence issues an HTTP synthesis request to the Coqui server.
 // WAV responses are stripped of their file headers and the raw PCM is emitted on
 // the returned channel in the original sentence order.
 //
@@ -274,9 +334,18 @@ func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voi
 	return audioCh, nil
 }
 
-// synthesize performs a single POST /tts_to_audio/ call and returns the raw PCM
-// (WAV header stripped). It is called concurrently from dispatcher goroutines.
+// synthesize dispatches to the appropriate implementation based on the configured
+// API mode.
 func (p *Provider) synthesize(ctx context.Context, sentence string, voice tts.VoiceProfile) ([]byte, error) {
+	if p.apiMode == APIModeStandard {
+		return p.synthesizeStandard(ctx, sentence, voice)
+	}
+	return p.synthesizeXTTS(ctx, sentence, voice)
+}
+
+// synthesizeXTTS performs a single POST /tts_to_audio/ call (XTTS v2 mode) and
+// returns the raw PCM (WAV header stripped).
+func (p *Provider) synthesizeXTTS(ctx context.Context, sentence string, voice tts.VoiceProfile) ([]byte, error) {
 	body := ttsRequest{
 		Text:       sentence,
 		SpeakerWav: voice.ID,
@@ -317,14 +386,66 @@ func (p *Provider) synthesize(ctx context.Context, sentence string, voice tts.Vo
 	return wav[offset:], nil
 }
 
+// synthesizeStandard performs a single GET /api/tts request (standard server mode)
+// using URL query parameters and returns the raw PCM (WAV header stripped).
+func (p *Provider) synthesizeStandard(ctx context.Context, sentence string, voice tts.VoiceProfile) ([]byte, error) {
+	params := url.Values{}
+	params.Set("text", sentence)
+	if voice.ID != "" {
+		params.Set("speaker_id", voice.ID)
+	}
+	if p.language != "" {
+		params.Set("language_id", p.language)
+	}
+
+	reqURL := p.serverURL + apiTTSEndpoint + "?" + params.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("coqui: create tts request: %w", err)
+	}
+	req.Header.Set("Accept", "audio/wav")
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("coqui: GET %s: %w", apiTTSEndpoint, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("coqui: GET %s returned status %d", apiTTSEndpoint, resp.StatusCode)
+	}
+
+	wav, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("coqui: read WAV response: %w", err)
+	}
+
+	offset, err := findWAVDataOffset(wav)
+	if err != nil {
+		return nil, err
+	}
+
+	return wav[offset:], nil
+}
+
 // ---- ListVoices ----
 
-// ListVoices retrieves the list of studio speaker voices from the XTTS server via
-// GET /studio_speakers and maps each entry to a VoiceProfile.
+// ListVoices retrieves the list of available voices from the Coqui server.
 //
-// The XTTS server returns a JSON object whose keys are speaker names. Each voice
-// profile's ID and Name are set to the speaker name, and Provider is set to "coqui".
+// In APIModeXTTS, it calls GET /studio_speakers and maps each entry to a
+// VoiceProfile. In APIModeStandard, it calls GET /details and returns one
+// VoiceProfile per speaker for multi-speaker models, or a single VoiceProfile
+// (identified by model name) for single-speaker models.
 func (p *Provider) ListVoices(ctx context.Context) ([]tts.VoiceProfile, error) {
+	if p.apiMode == APIModeStandard {
+		return p.listVoicesStandard(ctx)
+	}
+	return p.listVoicesXTTS(ctx)
+}
+
+// listVoicesXTTS retrieves the list of studio speaker voices from the XTTS server via
+// GET /studio_speakers and maps each entry to a VoiceProfile.
+func (p *Provider) listVoicesXTTS(ctx context.Context) ([]tts.VoiceProfile, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.serverURL+studioSpeakersEndpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("coqui: create list-voices request: %w", err)
@@ -367,15 +488,88 @@ func (p *Provider) ListVoices(ctx context.Context) ([]tts.VoiceProfile, error) {
 	return profiles, nil
 }
 
+// listVoicesStandard retrieves model info from the standard Coqui TTS server via
+// GET /details. For multi-speaker models it returns one VoiceProfile per speaker;
+// for single-speaker models it returns a single VoiceProfile identified by the
+// model name.
+func (p *Provider) listVoicesStandard(ctx context.Context) ([]tts.VoiceProfile, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.serverURL+detailsEndpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("coqui: create list-voices request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("coqui: GET %s: %w", detailsEndpoint, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("coqui: GET %s returned status %d", detailsEndpoint, resp.StatusCode)
+	}
+
+	var details detailsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&details); err != nil {
+		return nil, fmt.Errorf("coqui: decode details response: %w", err)
+	}
+
+	// Multi-speaker model: return one profile per speaker.
+	if len(details.Speakers) > 0 {
+		// Sort for deterministic output.
+		speakers := make([]string, len(details.Speakers))
+		copy(speakers, details.Speakers)
+		sort.Strings(speakers)
+
+		profiles := make([]tts.VoiceProfile, 0, len(speakers))
+		for _, spk := range speakers {
+			profiles = append(profiles, tts.VoiceProfile{
+				ID:       spk,
+				Name:     spk,
+				Provider: "coqui",
+				Metadata: map[string]string{
+					"type":       "speaker",
+					"model_name": details.ModelName,
+				},
+			})
+		}
+		return profiles, nil
+	}
+
+	// Single-speaker model: return one profile identified by the model name.
+	name := details.ModelName
+	if name == "" {
+		name = "default"
+	}
+	return []tts.VoiceProfile{
+		{
+			ID:       name,
+			Name:     name,
+			Provider: "coqui",
+			Metadata: map[string]string{
+				"type":       "single-speaker",
+				"model_name": name,
+			},
+		},
+	}, nil
+}
+
 // ---- CloneVoice ----
 
 // CloneVoice creates a new speaker voice by uploading WAV audio samples to the
 // XTTS server via POST /clone_speaker. Each element of samples must be a valid
 // WAV-encoded audio file.
 //
+// Voice cloning is only supported in APIModeXTTS. In APIModeStandard, this method
+// always returns an error.
+//
 // Returns a VoiceProfile for the cloned voice or an error if the request fails.
 // A nil or empty samples slice returns an error rather than sending an empty request.
 func (p *Provider) CloneVoice(ctx context.Context, samples [][]byte) (*tts.VoiceProfile, error) {
+	if p.apiMode == APIModeStandard {
+		return nil, errors.New("coqui: voice cloning is not supported in standard API mode")
+	}
+
 	if len(samples) == 0 {
 		return nil, errors.New("coqui: CloneVoice requires at least one audio sample")
 	}

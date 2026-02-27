@@ -12,8 +12,24 @@ import (
 	"syscall"
 	"time"
 
+	anyllmlib "github.com/mozilla-ai/any-llm-go"
+
 	"github.com/MrWong99/glyphoxa/internal/app"
 	"github.com/MrWong99/glyphoxa/internal/config"
+	"github.com/MrWong99/glyphoxa/pkg/provider/embeddings"
+	ollamaembed "github.com/MrWong99/glyphoxa/pkg/provider/embeddings/ollama"
+	oaembed "github.com/MrWong99/glyphoxa/pkg/provider/embeddings/openai"
+	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
+	"github.com/MrWong99/glyphoxa/pkg/provider/llm/anyllm"
+	"github.com/MrWong99/glyphoxa/pkg/provider/s2s"
+	geminilive "github.com/MrWong99/glyphoxa/pkg/provider/s2s/gemini"
+	oais2s "github.com/MrWong99/glyphoxa/pkg/provider/s2s/openai"
+	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
+	"github.com/MrWong99/glyphoxa/pkg/provider/stt/deepgram"
+	"github.com/MrWong99/glyphoxa/pkg/provider/stt/whisper"
+	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
+	"github.com/MrWong99/glyphoxa/pkg/provider/tts/coqui"
+	"github.com/MrWong99/glyphoxa/pkg/provider/tts/elevenlabs"
 )
 
 func main() {
@@ -95,24 +111,143 @@ func run() int {
 // builtinProviders maps provider category names to the implementations that
 // ship with Glyphoxa. Used for startup logging.
 var builtinProviders = map[string][]string{
-	"llm":        {"openai", "anthropic", "ollama"},
-	"stt":        {"deepgram", "google", "whisper"},
-	"tts":        {"elevenlabs", "google", "piper"},
-	"s2s":        {"openai-realtime"},
-	"embeddings": {"openai", "cohere"},
-	"vad":        {"silero", "webrtc"},
-	"audio":      {"discord"},
+	"llm":        {"openai", "anthropic", "ollama", "gemini", "deepseek", "mistral", "groq", "llamacpp", "llamafile"},
+	"stt":        {"deepgram", "whisper"},
+	"tts":        {"elevenlabs", "coqui"},
+	"s2s":        {"openai-realtime", "gemini-live"},
+	"embeddings": {"openai", "ollama"},
 }
 
-// registerBuiltinProviders prints the registered names as a placeholder.
-// Real factory functions will be added when provider packages are implemented.
+// registerBuiltinProviders wires all built-in provider factories into reg.
+// Each factory receives a config.ProviderEntry and constructs the appropriate
+// provider from the real implementation packages.
 func registerBuiltinProviders(reg *config.Registry) {
+	// ── LLM ───────────────────────────────────────────────────────────────────
+	// openai, anthropic, gemini, deepseek, mistral, groq, llamacpp, llamafile
+	// all share the same pattern: optional APIKey + optional BaseURL.
+	for _, providerName := range []string{
+		"openai", "anthropic", "gemini",
+		"deepseek", "mistral", "groq", "llamacpp", "llamafile",
+	} {
+		name := providerName // per-iteration capture
+		reg.RegisterLLM(name, func(entry config.ProviderEntry) (llm.Provider, error) {
+			var opts []anyllmlib.Option
+			if entry.APIKey != "" {
+				opts = append(opts, anyllmlib.WithAPIKey(entry.APIKey))
+			}
+			if entry.BaseURL != "" {
+				opts = append(opts, anyllmlib.WithBaseURL(entry.BaseURL))
+			}
+			p, err := anyllm.New(name, entry.Model, opts...)
+			if err != nil {
+				return nil, err
+			}
+			return p, nil
+		})
+	}
+
+	// ollama is a local server; it uses BaseURL for the address, not an API key.
+	reg.RegisterLLM("ollama", func(entry config.ProviderEntry) (llm.Provider, error) {
+		var opts []anyllmlib.Option
+		if entry.BaseURL != "" {
+			opts = append(opts, anyllmlib.WithBaseURL(entry.BaseURL))
+		}
+		p, err := anyllm.New("ollama", entry.Model, opts...)
+		if err != nil {
+			return nil, err
+		}
+		return p, nil
+	})
+
+	// ── STT ───────────────────────────────────────────────────────────────────
+
+	reg.RegisterSTT("deepgram", func(entry config.ProviderEntry) (stt.Provider, error) {
+		var opts []deepgram.Option
+		if entry.Model != "" {
+			opts = append(opts, deepgram.WithModel(entry.Model))
+		}
+		if lang := optString(entry.Options, "language"); lang != "" {
+			opts = append(opts, deepgram.WithLanguage(lang))
+		}
+		return deepgram.New(entry.APIKey, opts...)
+	})
+
+	reg.RegisterSTT("whisper", func(entry config.ProviderEntry) (stt.Provider, error) {
+		var opts []whisper.Option
+		if entry.Model != "" {
+			opts = append(opts, whisper.WithModel(entry.Model))
+		}
+		if lang := optString(entry.Options, "language"); lang != "" {
+			opts = append(opts, whisper.WithLanguage(lang))
+		}
+		return whisper.New(entry.BaseURL, opts...)
+	})
+
+	// ── TTS ───────────────────────────────────────────────────────────────────
+
+	reg.RegisterTTS("elevenlabs", func(entry config.ProviderEntry) (tts.Provider, error) {
+		var opts []elevenlabs.Option
+		if entry.Model != "" {
+			opts = append(opts, elevenlabs.WithModel(entry.Model))
+		}
+		if outputFmt := optString(entry.Options, "output_format"); outputFmt != "" {
+			opts = append(opts, elevenlabs.WithOutputFormat(outputFmt))
+		}
+		return elevenlabs.New(entry.APIKey, opts...)
+	})
+
+	reg.RegisterTTS("coqui", func(entry config.ProviderEntry) (tts.Provider, error) {
+		var opts []coqui.Option
+		if lang := optString(entry.Options, "language"); lang != "" {
+			opts = append(opts, coqui.WithLanguage(lang))
+		}
+		return coqui.New(entry.BaseURL, opts...)
+	})
+
+	// ── Embeddings ────────────────────────────────────────────────────────────
+
+	reg.RegisterEmbeddings("openai", func(entry config.ProviderEntry) (embeddings.Provider, error) {
+		var opts []oaembed.Option
+		if entry.BaseURL != "" {
+			opts = append(opts, oaembed.WithBaseURL(entry.BaseURL))
+		}
+		return oaembed.New(entry.APIKey, entry.Model, opts...)
+	})
+
+	reg.RegisterEmbeddings("ollama", func(entry config.ProviderEntry) (embeddings.Provider, error) {
+		return ollamaembed.New(entry.BaseURL, entry.Model)
+	})
+
+	// ── S2S ───────────────────────────────────────────────────────────────────
+
+	reg.RegisterS2S("openai-realtime", func(entry config.ProviderEntry) (s2s.Provider, error) {
+		var opts []oais2s.Option
+		if entry.Model != "" {
+			opts = append(opts, oais2s.WithModel(entry.Model))
+		}
+		if entry.BaseURL != "" {
+			opts = append(opts, oais2s.WithBaseURL(entry.BaseURL))
+		}
+		return oais2s.New(entry.APIKey, opts...), nil
+	})
+
+	reg.RegisterS2S("gemini-live", func(entry config.ProviderEntry) (s2s.Provider, error) {
+		var opts []geminilive.Option
+		if entry.Model != "" {
+			opts = append(opts, geminilive.WithModel(entry.Model))
+		}
+		if entry.BaseURL != "" {
+			opts = append(opts, geminilive.WithBaseURL(entry.BaseURL))
+		}
+		return geminilive.New(entry.APIKey, opts...), nil
+	})
+
+	// Debug log of all registered providers.
 	for kind, names := range builtinProviders {
 		for _, name := range names {
 			slog.Debug("registered provider", "kind", kind, "name", name)
 		}
 	}
-	_ = reg // wired when real provider factories land
 }
 
 // buildProviders instantiates all providers named in cfg using the registry
@@ -256,4 +391,23 @@ func newLogger(level config.LogLevel) *slog.Logger {
 		lvl = slog.LevelInfo
 	}
 	return slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl}))
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+// optString extracts a string value from a provider Options map[string]any.
+// Returns "" if the map is nil, the key is absent, or the value is not a string.
+func optString(opts map[string]any, key string) string {
+	if opts == nil {
+		return ""
+	}
+	v, ok := opts[key]
+	if !ok {
+		return ""
+	}
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+	return s
 }
