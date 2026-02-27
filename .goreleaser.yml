@@ -1,0 +1,65 @@
+version: 2
+
+builds:
+  - id: glyphoxa
+    main: ./cmd/glyphoxa
+    binary: glyphoxa
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    overrides:
+      - goos: linux
+        goarch: amd64
+        env:
+          - CC=x86_64-linux-gnu-gcc
+      - goos: linux
+        goarch: arm64
+        env:
+          - CC=aarch64-linux-gnu-gcc
+      - goos: darwin
+        goarch: amd64
+        env:
+          - CC=o64-clang
+      - goos: darwin
+        goarch: arm64
+        env:
+          - CC=oa64-clang
+    ldflags:
+      - -s -w
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+
+release:
+  github:
+    owner: MrWong99
+    name: glyphoxa
+  draft: false
+  prerelease: auto
+  name_template: "{{ .Version }}"
+  header: |
+    # Release {{ .Version }}
+  footer: |
+    # Glyphoxa Docker image
+    docker pull ghcr.io/mrwong99/glyphoxa:v{{ .Version }}
+
+    Release Date: {{ .Date }}
