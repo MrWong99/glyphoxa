@@ -1,0 +1,47 @@
+# Glyphoxa — Docker Compose configuration (cloud providers)
+# Copy this file and fill in your API keys before starting.
+
+server:
+  listen_addr: ":8080"
+  log_level: info
+
+providers:
+  llm:
+    name: openai
+    api_key: "CHANGE_ME"
+    model: gpt-4o
+
+  stt:
+    name: deepgram
+    api_key: "CHANGE_ME"
+    model: nova-2
+    options:
+      language: en-US
+
+  tts:
+    name: elevenlabs
+    api_key: "CHANGE_ME"
+    model: eleven_multilingual_v2
+    options:
+      output_format: pcm_48000
+
+  embeddings:
+    name: openai
+    api_key: "CHANGE_ME"
+    model: text-embedding-3-small
+
+  vad:
+    name: silero
+    options:
+      frame_size_ms: 30
+      speech_threshold: 0.5
+      silence_threshold: 0.35
+
+npcs: []
+
+memory:
+  postgres_dsn: postgres://glyphoxa:glyphoxa@postgres:5432/glyphoxa?sslmode=disable
+  embedding_dimensions: 1536
+
+mcp:
+  servers: []

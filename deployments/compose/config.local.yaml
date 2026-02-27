@@ -1,0 +1,44 @@
+# Glyphoxa — Docker Compose configuration (local stack)
+# Use with: docker compose --profile local-llm up
+# No cloud API keys required.
+
+server:
+  listen_addr: ":8080"
+  log_level: info
+
+providers:
+  llm:
+    name: ollama
+    base_url: "http://ollama:11434"
+    model: llama3.2
+
+  stt:
+    name: whisper
+    base_url: "http://whisper:9000"
+    model: base
+
+  tts:
+    name: coqui
+    base_url: "http://tts:5002"
+    model: tts_models/multilingual/multi-dataset/xtts_v2
+
+  embeddings:
+    name: ollama
+    base_url: "http://ollama:11434"
+    model: nomic-embed-text
+
+  vad:
+    name: silero
+    options:
+      frame_size_ms: 30
+      speech_threshold: 0.5
+      silence_threshold: 0.35
+
+npcs: []
+
+memory:
+  postgres_dsn: postgres://glyphoxa:glyphoxa@postgres:5432/glyphoxa?sslmode=disable
+  embedding_dimensions: 768
+
+mcp:
+  servers: []
