@@ -25,12 +25,12 @@ func makeMockLLM(correctedText, origWord, corrWord string) *mock.Provider {
 
 func makeTranscript(text string, words ...stt.WordDetail) stt.Transcript {
 	return stt.Transcript{
-		Text:      text,
-		IsFinal:   true,
+		Text:       text,
+		IsFinal:    true,
 		Confidence: 0.85,
-		Words:     words,
-		Timestamp: time.Second,
-		Duration:  3 * time.Second,
+		Words:      words,
+		Timestamp:  time.Second,
+		Duration:   3 * time.Second,
 	}
 }
 
@@ -257,5 +257,3 @@ func TestCorrectionPipeline_OriginalPreserved(t *testing.T) {
 		t.Errorf("Original.Text=%q, want %q", result.Original.Text, tr.Text)
 	}
 }
-
-

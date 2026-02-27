@@ -65,13 +65,13 @@ type rollTableResult struct {
 func parseExpression(expr string) (count, sides, modifier int, err error) {
 	expr = strings.ToLower(strings.TrimSpace(expr))
 
-	dIdx := strings.Index(expr, "d")
-	if dIdx == -1 {
+	before, after, ok := strings.Cut(expr, "d")
+	if !ok {
 		return 0, 0, 0, fmt.Errorf("diceroller: invalid expression %q: missing 'd' separator", expr)
 	}
 
 	// Parse count (the part before 'd').
-	countStr := expr[:dIdx]
+	countStr := before
 	if countStr == "" {
 		count = 1
 	} else {
@@ -85,31 +85,31 @@ func parseExpression(expr string) (count, sides, modifier int, err error) {
 	}
 
 	// Parse sides and optional modifier (the part after 'd').
-	rest := expr[dIdx+1:]
+	rest := after
 
-	plusIdx := strings.Index(rest, "+")
+	before, after, ok := strings.Cut(rest, "+")
 	// Find the minus sign, but not if rest is empty.
-	minusIdx := strings.Index(rest, "-")
+	before, after, ok := strings.Cut(rest, "-")
 
 	switch {
-	case plusIdx != -1:
-		sides, err = strconv.Atoi(rest[:plusIdx])
+	case ok:
+		sides, err = strconv.Atoi(before)
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("diceroller: invalid sides %q in expression %q", rest[:plusIdx], expr)
+			return 0, 0, 0, fmt.Errorf("diceroller: invalid sides %q in expression %q", before, expr)
 		}
-		modifier, err = strconv.Atoi(rest[plusIdx+1:])
+		modifier, err = strconv.Atoi(after)
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("diceroller: invalid modifier %q in expression %q", rest[plusIdx+1:], expr)
+			return 0, 0, 0, fmt.Errorf("diceroller: invalid modifier %q in expression %q", after, expr)
 		}
 
-	case minusIdx != -1:
-		sides, err = strconv.Atoi(rest[:minusIdx])
+	case ok:
+		sides, err = strconv.Atoi(before)
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("diceroller: invalid sides %q in expression %q", rest[:minusIdx], expr)
+			return 0, 0, 0, fmt.Errorf("diceroller: invalid sides %q in expression %q", before, expr)
 		}
-		mod, err2 := strconv.Atoi(rest[minusIdx+1:])
+		mod, err2 := strconv.Atoi(after)
 		if err2 != nil {
-			return 0, 0, 0, fmt.Errorf("diceroller: invalid modifier %q in expression %q", rest[minusIdx+1:], expr)
+			return 0, 0, 0, fmt.Errorf("diceroller: invalid modifier %q in expression %q", after, expr)
 		}
 		modifier = -mod
 

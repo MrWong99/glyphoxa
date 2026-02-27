@@ -226,10 +226,10 @@ type functionResponse struct {
 // ── Protocol message types (incoming) ─────────────────────────────────────────
 
 type serverMessage struct {
-	SetupComplete        *json.RawMessage      `json:"setupComplete,omitempty"`
-	ServerContent        *serverContent        `json:"serverContent,omitempty"`
-	ToolCall             *toolCallMsg          `json:"toolCall,omitempty"`
-	ToolCallCancellation *json.RawMessage      `json:"toolCallCancellation,omitempty"`
+	SetupComplete        *json.RawMessage `json:"setupComplete,omitempty"`
+	ServerContent        *serverContent   `json:"serverContent,omitempty"`
+	ToolCall             *toolCallMsg     `json:"toolCall,omitempty"`
+	ToolCallCancellation *json.RawMessage `json:"toolCallCancellation,omitempty"`
 }
 
 type serverContent struct {
@@ -608,8 +608,8 @@ func (s *session) Close() error {
 	s.closed = true
 	s.mu.Unlock()
 
-	s.cancel()         // unblocks receiveLoop and keepaliveLoop
-	close(s.done)      // signals keepaliveLoop via done channel
+	s.cancel()    // unblocks receiveLoop and keepaliveLoop
+	close(s.done) // signals keepaliveLoop via done channel
 	s.conn.Close(websocket.StatusNormalClosure, "session closed")
 	return nil
 }

@@ -76,7 +76,7 @@ func TestRollingWindowErrorRate(t *testing.T) {
 func TestRollingWindowCount(t *testing.T) {
 	t.Parallel()
 	w := newRollingWindow(5)
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		w.Record(int64(i*10), false)
 	}
 	if got := w.Count(); got != 7 {
@@ -120,15 +120,15 @@ func TestRollingWindowConcurrent(t *testing.T) {
 	t.Parallel()
 	w := newRollingWindow(50)
 	done := make(chan struct{})
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		go func(v int64) {
-			for j := 0; j < 20; j++ {
+			for j := range 20 {
 				w.Record(v, j%3 == 0)
 			}
 			done <- struct{}{}
 		}(int64(i * 10))
 	}
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		<-done
 	}
 	// Just ensure no panic and count is sane.

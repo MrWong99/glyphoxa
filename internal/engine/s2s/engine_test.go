@@ -385,7 +385,7 @@ func TestClose_Idempotent(t *testing.T) {
 	resp := mustProcess(t, e, nil)
 	go drainAudio(resp.Audio)
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if err := e.Close(); err != nil {
 			t.Fatalf("Close() call %d returned error: %v", i+1, err)
 		}
@@ -441,12 +441,12 @@ func TestConcurrentProcessCalls(t *testing.T) {
 	var wg sync.WaitGroup
 	errs := make([]error, goroutines)
 
-	for i := 0; i < goroutines; i++ {
+	for i := range goroutines {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
 			frame := audio.AudioFrame{
-				Data:       []byte(fmt.Sprintf("audio-%d", idx)),
+				Data:       fmt.Appendf(nil, "audio-%d", idx),
 				SampleRate: 16000,
 				Channels:   1,
 			}

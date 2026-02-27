@@ -109,7 +109,7 @@ func (d *AddressDetector) buildIndex(agents []agent.NPCAgent) {
 		d.nameIndex[lower] = id
 
 		// Index individual words ≥ 3 characters.
-		for _, word := range strings.Fields(lower) {
+		for word := range strings.FieldsSeq(lower) {
 			if len(word) >= 3 {
 				d.nameIndex[word] = id
 			}

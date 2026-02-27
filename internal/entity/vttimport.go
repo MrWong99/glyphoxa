@@ -21,20 +21,20 @@ type foundryWorld struct {
 }
 
 type foundryActor struct {
-	ID   string         `json:"_id"`
-	Name string         `json:"name"`
-	Type string         `json:"type"`
-	Img  string         `json:"img"`
+	ID    string         `json:"_id"`
+	Name  string         `json:"name"`
+	Type  string         `json:"type"`
+	Img   string         `json:"img"`
 	Flags map[string]any `json:"flags"`
 	// system holds game-system-specific stats; we capture it as raw JSON.
 	System json.RawMessage `json:"system"`
 }
 
 type foundryItem struct {
-	ID   string         `json:"_id"`
-	Name string         `json:"name"`
-	Type string         `json:"type"`
-	Img  string         `json:"img"`
+	ID    string         `json:"_id"`
+	Name  string         `json:"name"`
+	Type  string         `json:"type"`
+	Img   string         `json:"img"`
 	Flags map[string]any `json:"flags"`
 }
 
@@ -48,8 +48,8 @@ type foundryJournal struct {
 }
 
 type foundryPage struct {
-	Name string              `json:"name"`
-	Text foundryPageText     `json:"text"`
+	Name string          `json:"name"`
+	Text foundryPageText `json:"text"`
 }
 
 type foundryPageText struct {
@@ -161,10 +161,10 @@ type roll20Export struct {
 }
 
 type roll20Character struct {
-	ID      string           `json:"id"`
-	Name    string           `json:"name"`
-	Bio     string           `json:"bio"`
-	Attribs []roll20Attrib   `json:"attribs"`
+	ID      string         `json:"id"`
+	Name    string         `json:"name"`
+	Bio     string         `json:"bio"`
+	Attribs []roll20Attrib `json:"attribs"`
 }
 
 type roll20Attrib struct {

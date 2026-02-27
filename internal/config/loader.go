@@ -92,4 +92,3 @@ func Validate(cfg *Config) error {
 
 	return errors.Join(errs...)
 }
-

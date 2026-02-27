@@ -203,11 +203,9 @@ func (e *Engine) Process(ctx context.Context, input audio.AudioFrame, prompt eng
 		Audio: audioCh,
 	}
 
-	e.wg.Add(1)
-	go func() {
-		defer e.wg.Done()
+	e.wg.Go(func() {
 		e.forwardAudio(audioCh, sessionAudioCh)
-	}()
+	})
 
 	return resp, nil
 }

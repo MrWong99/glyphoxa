@@ -14,10 +14,10 @@ import (
 func TestParseExpression_Valid(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		expr            string
-		wantCount       int
-		wantSides       int
-		wantModifier    int
+		expr         string
+		wantCount    int
+		wantSides    int
+		wantModifier int
 	}{
 		{"1d6", 1, 6, 0},
 		{"2d6+3", 2, 6, 3},
@@ -25,8 +25,8 @@ func TestParseExpression_Valid(t *testing.T) {
 		{"1d20", 1, 20, 0},
 		{"10d10+5", 10, 10, 5},
 		{"1d1", 1, 1, 0},
-		{"d20", 1, 20, 0},   // implicit count of 1
-		{"D6", 1, 6, 0},     // case-insensitive
+		{"d20", 1, 20, 0}, // implicit count of 1
+		{"D6", 1, 6, 0},   // case-insensitive
 		{"3d6+0", 3, 6, 0},
 		{"1d100-50", 1, 100, -50},
 	}
@@ -53,15 +53,15 @@ func TestParseExpression_Valid(t *testing.T) {
 func TestParseExpression_Invalid(t *testing.T) {
 	t.Parallel()
 	cases := []string{
-		"",         // empty
-		"6",        // no 'd'
-		"0d6",      // count < 1
-		"2d0",      // sides < 1
-		"xd6",      // non-numeric count
-		"2dx",      // non-numeric sides
-		"2d6+y",    // non-numeric modifier
-		"2d6-z",    // non-numeric modifier after minus
-		"abc",      // complete garbage
+		"",      // empty
+		"6",     // no 'd'
+		"0d6",   // count < 1
+		"2d0",   // sides < 1
+		"xd6",   // non-numeric count
+		"2dx",   // non-numeric sides
+		"2d6+y", // non-numeric modifier
+		"2d6-z", // non-numeric modifier after minus
+		"abc",   // complete garbage
 	}
 
 	for _, expr := range cases {
@@ -84,11 +84,11 @@ func TestParseExpression_Invalid(t *testing.T) {
 func TestRollHandler_Valid(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name       string
-		args       string
-		wantCount  int  // expected number of rolls
-		minTotal   int
-		maxTotal   int
+		name      string
+		args      string
+		wantCount int // expected number of rolls
+		minTotal  int
+		maxTotal  int
 	}{
 		{
 			name:      "1d1",
@@ -115,7 +115,7 @@ func TestRollHandler_Valid(t *testing.T) {
 			name:      "10d10+5",
 			args:      `{"expression":"10d10+5"}`,
 			wantCount: 10,
-			minTotal:  15, // 10*1+5
+			minTotal:  15,  // 10*1+5
 			maxTotal:  105, // 10*10+5
 		},
 		{

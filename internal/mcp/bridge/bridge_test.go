@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/MrWong99/glyphoxa/internal/mcp"
-	mckmock "github.com/MrWong99/glyphoxa/internal/mcp/mock"
 	"github.com/MrWong99/glyphoxa/internal/mcp/bridge"
+	mckmock "github.com/MrWong99/glyphoxa/internal/mcp/mock"
 	"github.com/MrWong99/glyphoxa/pkg/memory"
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 	s2smock "github.com/MrWong99/glyphoxa/pkg/provider/s2s/mock"

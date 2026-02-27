@@ -308,7 +308,7 @@ func TestHealthDemotion(t *testing.T) {
 
 	// Execute enough times to push error rate above 30 %.
 	ctx := context.Background()
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		h.ExecuteTool(ctx, "flaky", "{}") //nolint:errcheck
 	}
 
@@ -332,9 +332,9 @@ func TestAvailableToolsSorting(t *testing.T) {
 	defer h.Close()
 
 	// Register in reverse latency order.
-	must(t, h.RegisterBuiltin(echoTool("slow", 400)))  // 400ms
-	must(t, h.RegisterBuiltin(echoTool("fast", 50)))   // 50ms
-	must(t, h.RegisterBuiltin(echoTool("mid", 200)))   // 200ms
+	must(t, h.RegisterBuiltin(echoTool("slow", 400))) // 400ms
+	must(t, h.RegisterBuiltin(echoTool("fast", 50)))  // 50ms
+	must(t, h.RegisterBuiltin(echoTool("mid", 200)))  // 200ms
 
 	tools := h.AvailableTools(mcp.BudgetDeep)
 	if len(tools) < 3 {
@@ -387,14 +387,14 @@ func TestConcurrentRegisterAndAvailable(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		for i := 0; i < 50; i++ {
+		for i := range 50 {
 			name := fmt.Sprintf("tool-%d", i)
 			_ = h.RegisterBuiltin(echoTool(name, 100))
 		}
 		close(done)
 	}()
 
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		h.AvailableTools(mcp.BudgetDeep)
 	}
 	<-done

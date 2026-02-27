@@ -429,8 +429,8 @@ func (s *stubEmbeddings) Embed(_ context.Context, _ string) ([]float32, error) {
 func (s *stubEmbeddings) EmbedBatch(_ context.Context, _ []string) ([][]float32, error) {
 	return nil, nil
 }
-func (s *stubEmbeddings) Dimensions() int  { return 0 }
-func (s *stubEmbeddings) ModelID() string  { return "stub" }
+func (s *stubEmbeddings) Dimensions() int { return 0 }
+func (s *stubEmbeddings) ModelID() string { return "stub" }
 
 // stubS2S implements s2s.Provider.
 type stubS2S struct{}

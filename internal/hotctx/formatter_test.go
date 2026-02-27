@@ -43,7 +43,7 @@ func fullHotContext() *hotctx.HotContext {
 				Type: "npc",
 				Name: "Grimjaw",
 				Attributes: map[string]any{
-					"occupation":    "blacksmith",
+					"occupation":     "blacksmith",
 					"speaking_style": "gruff and direct",
 				},
 			},
@@ -60,9 +60,9 @@ func fullHotContext() *hotctx.HotContext {
 			RelatedEntities: []memory.Entity{friendEntity},
 		},
 		SceneContext: &hotctx.SceneContext{
-			Location:    &locEntity,
+			Location:        &locEntity,
 			PresentEntities: []memory.Entity{friendEntity},
-			ActiveQuests: []memory.Entity{questEntity},
+			ActiveQuests:    []memory.Entity{questEntity},
 		},
 		RecentTranscript: []memory.TranscriptEntry{
 			{
@@ -241,7 +241,7 @@ func TestFormatSystemPrompt_EmptyScene(t *testing.T) {
 		SceneContext: &hotctx.SceneContext{
 			// nil Location, empty slices
 			PresentEntities: []memory.Entity{},
-			ActiveQuests: []memory.Entity{},
+			ActiveQuests:    []memory.Entity{},
 		},
 	}
 	result := hotctx.FormatSystemPrompt(hctx, "")

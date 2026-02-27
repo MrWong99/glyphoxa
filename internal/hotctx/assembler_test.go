@@ -25,7 +25,7 @@ func makeIdentity(npcID, name string) *memory.NPCIdentity {
 				"occupation": "blacksmith",
 			},
 		},
-		Relationships: []memory.Relationship{},
+		Relationships:   []memory.Relationship{},
 		RelatedEntities: []memory.Entity{},
 	}
 }
@@ -60,9 +60,9 @@ func TestAssemble_Basic(t *testing.T) {
 		},
 		// GetEntity returns the location entity for any ID queried
 		GetEntityResult: &memory.Entity{
-			ID:   locationID,
-			Type: "location",
-			Name: "The Forge",
+			ID:         locationID,
+			Type:       "location",
+			Name:       "The Forge",
 			Attributes: map[string]any{"description": "a hot smithy"},
 		},
 		// Neighbors returns a second NPC at the same location

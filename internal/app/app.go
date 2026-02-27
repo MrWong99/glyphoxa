@@ -363,11 +363,9 @@ func (a *App) Run(ctx context.Context) error {
 	// ── Start transcript recording for each agent ────────────────────────
 	var wg sync.WaitGroup
 	for _, ag := range a.agents {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			a.recordTranscripts(ctx, ag)
-		}()
+		})
 	}
 
 	slog.Info("app running", "npcs", len(a.agents))

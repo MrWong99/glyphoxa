@@ -60,7 +60,7 @@ type PriorityMixer struct {
 	gap            time.Duration       // base silence gap between segments
 	playing        *audio.AudioSegment // currently playing segment, or nil
 	playingPri     int                 // priority of the currently playing segment
-	cancelPlaying  chan struct{}        // closed to interrupt the current segment
+	cancelPlaying  chan struct{}       // closed to interrupt the current segment
 	bargeInHandler func(string)        // last-writer-wins barge-in callback
 
 	notify chan struct{} // signalled when a new segment is enqueued or interrupt fires

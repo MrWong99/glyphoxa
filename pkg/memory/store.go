@@ -124,11 +124,11 @@ type ChunkResult struct {
 // carry arbitrary keys — but these are recognised by the formatter and other
 // subsystems for special ordering or display treatment.
 const (
-	AttrOccupation   = "occupation"
-	AttrAppearance   = "appearance"
+	AttrOccupation    = "occupation"
+	AttrAppearance    = "appearance"
 	AttrSpeakingStyle = "speaking_style"
-	AttrPersonality  = "personality"
-	AttrAlignment    = "alignment"
+	AttrPersonality   = "personality"
+	AttrAlignment     = "alignment"
 )
 
 // Entity represents a named object in the knowledge graph (L3).

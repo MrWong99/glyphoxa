@@ -32,12 +32,12 @@ type mockRows struct {
 	scanErr error
 }
 
-func (r *mockRows) Close()                        { r.closed = true }
-func (r *mockRows) Err() error                    { return r.err }
-func (r *mockRows) CommandTag() pgconn.CommandTag  { return pgconn.CommandTag{} }
+func (r *mockRows) Close()                                       { r.closed = true }
+func (r *mockRows) Err() error                                   { return r.err }
+func (r *mockRows) CommandTag() pgconn.CommandTag                { return pgconn.CommandTag{} }
 func (r *mockRows) FieldDescriptions() []pgconn.FieldDescription { return nil }
-func (r *mockRows) RawValues() [][]byte            { return nil }
-func (r *mockRows) Conn() *pgx.Conn               { return nil }
+func (r *mockRows) RawValues() [][]byte                          { return nil }
+func (r *mockRows) Conn() *pgx.Conn                              { return nil }
 
 func (r *mockRows) Next() bool {
 	if r.idx >= len(r.data) {
@@ -739,20 +739,20 @@ func TestPostgresStore_List(t *testing.T) {
 
 	makeRow := func(id, campaignID, name string) []any {
 		return []any{
-			id,         // id
-			campaignID, // campaign_id
-			name,       // name
-			"",         // personality
-			"cascaded", // engine
-			[]byte(`{}`),   // voice
-			[]byte(`[]`),   // knowledge_scope
-			[]byte(`[]`),   // secret_knowledge
-			[]byte(`[]`),   // behavior_rules
-			[]byte(`[]`),   // tools
-			"fast",         // budget_tier
-			[]byte(`{}`),   // attributes
-			fixedTime,      // created_at
-			fixedTime,      // updated_at
+			id,           // id
+			campaignID,   // campaign_id
+			name,         // name
+			"",           // personality
+			"cascaded",   // engine
+			[]byte(`{}`), // voice
+			[]byte(`[]`), // knowledge_scope
+			[]byte(`[]`), // secret_knowledge
+			[]byte(`[]`), // behavior_rules
+			[]byte(`[]`), // tools
+			"fast",       // budget_tier
+			[]byte(`{}`), // attributes
+			fixedTime,    // created_at
+			fixedTime,    // updated_at
 		}
 	}
 

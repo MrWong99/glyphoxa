@@ -30,7 +30,7 @@ type Connection struct {
 
 	mu           sync.RWMutex
 	peers        map[string]*peer
-	inputStreams  map[string]chan audio.AudioFrame
+	inputStreams map[string]chan audio.AudioFrame
 	outputCh     chan audio.AudioFrame
 	onChange     func(audio.Event)
 	disconnected bool
@@ -43,14 +43,14 @@ type Connection struct {
 func newConnection(channelID string, sampleRate int, stunServers []string) *Connection {
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Connection{
-		channelID:   channelID,
-		sampleRate:  sampleRate,
-		stunServers: stunServers,
-		peers:       make(map[string]*peer),
+		channelID:    channelID,
+		sampleRate:   sampleRate,
+		stunServers:  stunServers,
+		peers:        make(map[string]*peer),
 		inputStreams: make(map[string]chan audio.AudioFrame),
-		outputCh:    make(chan audio.AudioFrame, outputChannelBuffer),
-		ctx:         ctx,
-		cancel:      cancel,
+		outputCh:     make(chan audio.AudioFrame, outputChannelBuffer),
+		ctx:          ctx,
+		cancel:       cancel,
 		newTransport: func(_ string) PeerTransport {
 			return newMockTransport()
 		},

@@ -399,12 +399,10 @@ func TestHandleUtterance_ConcurrentCallsSerialised(t *testing.T) {
 	errs := make([]error, numCalls)
 
 	for i := range numCalls {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			transcript := stt.Transcript{Text: "Hello.", IsFinal: true}
 			errs[i] = a.HandleUtterance(context.Background(), "player-1", transcript)
-		}()
+		})
 	}
 
 	wg.Wait()
@@ -613,4 +611,3 @@ func TestHandleUtterance_BuildsConversationHistory(t *testing.T) {
 		t.Errorf("third message content = %q, want %q", secondCallMsgs[2].Content, "Second question.")
 	}
 }
-

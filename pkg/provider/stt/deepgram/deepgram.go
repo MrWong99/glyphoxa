@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	deepgramEndpoint = "wss://api.deepgram.com/v1/listen"
-	defaultModel     = "nova-3"
-	defaultLanguage  = "en"
+	deepgramEndpoint  = "wss://api.deepgram.com/v1/listen"
+	defaultModel      = "nova-3"
+	defaultLanguage   = "en"
 	defaultSampleRate = 16000
 )
 
@@ -170,9 +170,9 @@ type session struct {
 	finals   chan stt.Transcript
 	audio    chan []byte
 
-	done   chan struct{}
-	once   sync.Once
-	wg     sync.WaitGroup
+	done chan struct{}
+	once sync.Once
+	wg   sync.WaitGroup
 
 	kwMu     sync.RWMutex
 	keywords []stt.KeywordBoost // stored for reference; Deepgram doesn't support mid-stream updates

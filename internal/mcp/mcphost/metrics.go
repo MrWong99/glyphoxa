@@ -116,10 +116,7 @@ func (w *rollingWindow) ErrorRate() float64 {
 	if n == 0 {
 		return 0
 	}
-	errInWindow := w.errors
-	if errInWindow > n {
-		errInWindow = n
-	}
+	errInWindow := min(w.errors, n)
 	return float64(errInWindow) / float64(n)
 }
 

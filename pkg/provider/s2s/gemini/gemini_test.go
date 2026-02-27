@@ -934,13 +934,11 @@ func TestConcurrentSendAudio_DoesNotRace(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range goroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for range chunksPerGoroutine {
 				_ = handle.SendAudio([]byte{0x01, 0x02, 0x03, 0x04})
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }

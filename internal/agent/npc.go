@@ -71,7 +71,7 @@ type liveAgent struct {
 	identity   NPCIdentity
 	eng        engine.VoiceEngine
 	assembler  *hotctx.Assembler
-	mcpHost    mcp.Host   // may be nil if no tools
+	mcpHost    mcp.Host    // may be nil if no tools
 	mixer      audio.Mixer // may be nil if not using mixer
 	sessionID  string
 	budgetTier mcp.BudgetTier

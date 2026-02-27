@@ -135,7 +135,6 @@ func TestListFilterByType(t *testing.T) {
 		{"item filter (none)", entity.EntityItem, 0},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := s.List(ctx, entity.ListOptions{Type: tc.filterTyp})
@@ -178,7 +177,6 @@ func TestListFilterByTags(t *testing.T) {
 		{"non-existent tag", []string{"hobbit"}, 0},
 	}
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := s.List(ctx, entity.ListOptions{Tags: tc.tags})
@@ -284,7 +282,7 @@ func TestConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
 
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
 			e, err := s.Add(ctx, entity.EntityDefinition{

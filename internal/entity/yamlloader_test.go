@@ -65,7 +65,6 @@ func TestLoadCampaignFromReader(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			cf, err := entity.LoadCampaignFromReader(strings.NewReader(tc.input))
@@ -109,7 +108,6 @@ func TestLoadCampaignFromReader_Invalid(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			_, err := entity.LoadCampaignFromReader(strings.NewReader(tc.input))

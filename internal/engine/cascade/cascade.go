@@ -56,11 +56,11 @@ const (
 // Engine is safe for concurrent use. Multiple concurrent [Engine.Process] calls
 // are allowed; each spawns an independent goroutine for the strong-model stage.
 type Engine struct {
-	fastLLM      llm.Provider
-	strongLLM    llm.Provider
-	ttsP         tts.Provider
-	voice        tts.VoiceProfile
-	sttP         stt.Provider // nil = text-only mode (STT skipped)
+	fastLLM   llm.Provider
+	strongLLM llm.Provider
+	ttsP      tts.Provider
+	voice     tts.VoiceProfile
+	sttP      stt.Provider // nil = text-only mode (STT skipped)
 
 	openerSuffix  string
 	transcriptBuf int
@@ -191,9 +191,7 @@ func (e *Engine) Process(ctx context.Context, _ audio.AudioFrame, prompt engine.
 	resp := &engine.Response{Text: opener, Audio: audioCh}
 
 	// Background goroutine: send opener → strong model → close textCh.
-	e.wg.Add(1)
-	go func() {
-		defer e.wg.Done()
+	e.wg.Go(func() {
 		defer close(textCh)
 
 		// Deliver the opener to TTS immediately so playback begins.
@@ -212,7 +210,7 @@ func (e *Engine) Process(ctx context.Context, _ audio.AudioFrame, prompt engine.
 
 		// Forward the strong model's output as sentence-level chunks to TTS.
 		e.forwardSentences(ctx, strongCh, textCh, resp)
-	}()
+	})
 
 	return resp, nil
 }
