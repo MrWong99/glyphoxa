@@ -213,10 +213,9 @@ func (a *App) initMemory(ctx context.Context) error {
 // initMCP sets up the MCP host, registers servers, and calibrates.
 func (a *App) initMCP(ctx context.Context) error {
 	if a.mcpHost == nil {
-		host := mcphost.New()
-		a.mcpHost = host
-		a.closers = append(a.closers, host.Close)
+		a.mcpHost = mcphost.New()
 	}
+	a.closers = append(a.closers, a.mcpHost.Close)
 
 	for _, srv := range a.cfg.MCP.Servers {
 		serverCfg := mcp.ServerConfig{
