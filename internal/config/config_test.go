@@ -79,6 +79,7 @@ mcp:
 // ── YAML loading ──────────────────────────────────────────────────────────────
 
 func TestLoadFromReader_Valid(t *testing.T) {
+	t.Parallel()
 	cfg, err := config.LoadFromReader(strings.NewReader(sampleYAML))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -111,6 +112,7 @@ func TestLoadFromReader_Valid(t *testing.T) {
 }
 
 func TestLoadFromReader_EmptyIsValid(t *testing.T) {
+	t.Parallel()
 	// An empty config should succeed (no required top-level fields).
 	_, err := config.LoadFromReader(strings.NewReader("{}"))
 	if err != nil {
@@ -121,6 +123,7 @@ func TestLoadFromReader_EmptyIsValid(t *testing.T) {
 // ── Validation ────────────────────────────────────────────────────────────────
 
 func TestValidate_InvalidLogLevel(t *testing.T) {
+	t.Parallel()
 	yaml := `
 server:
   log_level: verbose
@@ -135,6 +138,7 @@ server:
 }
 
 func TestValidate_MissingNPCName(t *testing.T) {
+	t.Parallel()
 	yaml := `
 npcs:
   - personality: "No name NPC"
@@ -150,6 +154,7 @@ npcs:
 }
 
 func TestValidate_InvalidEngine(t *testing.T) {
+	t.Parallel()
 	yaml := `
 npcs:
   - name: TestNPC
@@ -165,6 +170,7 @@ npcs:
 }
 
 func TestValidate_InvalidBudgetTier(t *testing.T) {
+	t.Parallel()
 	yaml := `
 npcs:
   - name: TestNPC
@@ -177,6 +183,7 @@ npcs:
 }
 
 func TestValidate_InvalidSpeedFactor(t *testing.T) {
+	t.Parallel()
 	yaml := `
 npcs:
   - name: TestNPC
@@ -190,6 +197,7 @@ npcs:
 }
 
 func TestValidate_MCPMissingCommand(t *testing.T) {
+	t.Parallel()
 	yaml := `
 mcp:
   servers:
@@ -203,6 +211,7 @@ mcp:
 }
 
 func TestValidate_MCPMissingURL(t *testing.T) {
+	t.Parallel()
 	yaml := `
 mcp:
   servers:
@@ -216,6 +225,7 @@ mcp:
 }
 
 func TestValidate_MCPInvalidTransport(t *testing.T) {
+	t.Parallel()
 	yaml := `
 mcp:
   servers:
@@ -232,6 +242,7 @@ mcp:
 // ── Registry ─────────────────────────────────────────────────────────────────
 
 func TestRegistry_UnknownLLM(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	_, err := reg.CreateLLM(config.ProviderEntry{Name: "nonexistent"})
 	if err == nil {
@@ -243,6 +254,7 @@ func TestRegistry_UnknownLLM(t *testing.T) {
 }
 
 func TestRegistry_UnknownSTT(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	_, err := reg.CreateSTT(config.ProviderEntry{Name: "nonexistent"})
 	if !errors.Is(err, config.ErrProviderNotRegistered) {
@@ -251,6 +263,7 @@ func TestRegistry_UnknownSTT(t *testing.T) {
 }
 
 func TestRegistry_UnknownTTS(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	_, err := reg.CreateTTS(config.ProviderEntry{Name: "nonexistent"})
 	if !errors.Is(err, config.ErrProviderNotRegistered) {
@@ -259,6 +272,7 @@ func TestRegistry_UnknownTTS(t *testing.T) {
 }
 
 func TestRegistry_UnknownS2S(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	_, err := reg.CreateS2S(config.ProviderEntry{Name: "nonexistent"})
 	if !errors.Is(err, config.ErrProviderNotRegistered) {
@@ -267,6 +281,7 @@ func TestRegistry_UnknownS2S(t *testing.T) {
 }
 
 func TestRegistry_UnknownEmbeddings(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	_, err := reg.CreateEmbeddings(config.ProviderEntry{Name: "nonexistent"})
 	if !errors.Is(err, config.ErrProviderNotRegistered) {
@@ -275,6 +290,7 @@ func TestRegistry_UnknownEmbeddings(t *testing.T) {
 }
 
 func TestRegistry_UnknownVAD(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	_, err := reg.CreateVAD(config.ProviderEntry{Name: "nonexistent"})
 	if !errors.Is(err, config.ErrProviderNotRegistered) {
@@ -283,6 +299,7 @@ func TestRegistry_UnknownVAD(t *testing.T) {
 }
 
 func TestRegistry_UnknownAudio(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	_, err := reg.CreateAudio(config.ProviderEntry{Name: "nonexistent"})
 	if !errors.Is(err, config.ErrProviderNotRegistered) {
@@ -293,6 +310,7 @@ func TestRegistry_UnknownAudio(t *testing.T) {
 // ── Registry with registered factories ───────────────────────────────────────
 
 func TestRegistry_RegisteredLLM(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	want := &stubLLM{}
 	reg.RegisterLLM("stub", func(e config.ProviderEntry) (llm.Provider, error) {
@@ -308,6 +326,7 @@ func TestRegistry_RegisteredLLM(t *testing.T) {
 }
 
 func TestRegistry_RegisteredSTT(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	want := &stubSTT{}
 	reg.RegisterSTT("stub", func(e config.ProviderEntry) (stt.Provider, error) {
@@ -323,6 +342,7 @@ func TestRegistry_RegisteredSTT(t *testing.T) {
 }
 
 func TestRegistry_RegisteredTTS(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	want := &stubTTS{}
 	reg.RegisterTTS("stub", func(e config.ProviderEntry) (tts.Provider, error) {
@@ -338,6 +358,7 @@ func TestRegistry_RegisteredTTS(t *testing.T) {
 }
 
 func TestRegistry_RegisteredEmbeddings(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	want := &stubEmbeddings{}
 	reg.RegisterEmbeddings("stub", func(e config.ProviderEntry) (embeddings.Provider, error) {
@@ -353,6 +374,7 @@ func TestRegistry_RegisteredEmbeddings(t *testing.T) {
 }
 
 func TestRegistry_FactoryError(t *testing.T) {
+	t.Parallel()
 	reg := config.NewRegistry()
 	wantErr := errors.New("factory boom")
 	reg.RegisterLLM("broken", func(e config.ProviderEntry) (llm.Provider, error) {

@@ -89,9 +89,10 @@ type VoiceConfig struct {
 
 // validEngines is the set of accepted Engine values.
 var validEngines = map[string]struct{}{
-	"":         {}, // empty defaults to "cascaded"
-	"cascaded": {},
-	"s2s":      {},
+	"":                 {}, // empty defaults to "cascaded"
+	"cascaded":         {},
+	"s2s":              {},
+	"sentence_cascade": {},
 }
 
 // validBudgetTiers is the set of accepted BudgetTier values.
@@ -113,7 +114,7 @@ func (d *NPCDefinition) Validate() error {
 	}
 
 	if _, ok := validEngines[d.Engine]; !ok {
-		errs = append(errs, fmt.Errorf("npcstore: engine must be \"cascaded\" or \"s2s\", got %q", d.Engine))
+		errs = append(errs, fmt.Errorf("npcstore: engine must be \"cascaded\", \"s2s\", or \"sentence_cascade\", got %q", d.Engine))
 	}
 
 	if _, ok := validBudgetTiers[d.BudgetTier]; !ok {

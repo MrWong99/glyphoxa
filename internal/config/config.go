@@ -32,11 +32,39 @@ const (
 
 	// EngineS2S uses an end-to-end speech model.
 	EngineS2S Engine = "s2s"
+
+	// EngineSentenceCascade uses the experimental dual-model sentence cascade
+	// (fast opener + strong continuation). See docs/design/05-sentence-cascade.md.
+	EngineSentenceCascade Engine = "sentence_cascade"
 )
 
 // IsValid reports whether e is a recognised engine mode.
 func (e Engine) IsValid() bool {
-	return e == EngineCascaded || e == EngineS2S
+	return e == EngineCascaded || e == EngineS2S || e == EngineSentenceCascade
+}
+
+// CascadeMode controls the behaviour of the sentence cascade engine.
+type CascadeMode string
+
+const (
+	// CascadeModeOff disables the sentence cascade (default).
+	CascadeModeOff CascadeMode = "off"
+
+	// CascadeModeAuto enables the cascade only for complex or high-importance
+	// interactions, as determined by the orchestrator.
+	CascadeModeAuto CascadeMode = "auto"
+
+	// CascadeModeAlways enables the cascade for every interaction.
+	CascadeModeAlways CascadeMode = "always"
+)
+
+// IsValid reports whether m is a recognised cascade mode.
+func (m CascadeMode) IsValid() bool {
+	switch m {
+	case CascadeModeOff, CascadeModeAuto, CascadeModeAlways, "":
+		return true
+	}
+	return false
 }
 
 // BudgetTier constrains which MCP tools are offered to the LLM based on latency.
@@ -65,6 +93,34 @@ type Config struct {
 	NPCs      []NPCConfig     `yaml:"npcs"`
 	Memory    MemoryConfig    `yaml:"memory"`
 	MCP       MCPConfig       `yaml:"mcp"`
+	Campaign  CampaignConfig  `yaml:"campaign"`
+}
+
+// CampaignConfig holds pre-session entity and campaign data.
+type CampaignConfig struct {
+	// Name is the campaign's human-readable name (e.g., "Curse of Strahd").
+	Name string `yaml:"name"`
+
+	// System identifies the game system (e.g., "dnd5e", "pf2e").
+	System string `yaml:"system"`
+
+	// EntityFiles lists paths to YAML files containing entity definitions
+	// that are loaded at startup. Paths are resolved relative to the main
+	// config file's directory.
+	EntityFiles []string `yaml:"entity_files,omitempty"`
+
+	// VTTImports lists paths to VTT export files (Foundry VTT JSON or
+	// Roll20 JSON) to import at startup.
+	VTTImports []VTTImportConfig `yaml:"vtt_imports,omitempty"`
+}
+
+// VTTImportConfig describes a single VTT file to import.
+type VTTImportConfig struct {
+	// Path is the filesystem path to the VTT export file.
+	Path string `yaml:"path"`
+
+	// Format identifies the VTT platform. Supported values: "foundry", "roll20".
+	Format string `yaml:"format"`
 }
 
 // ServerConfig holds network and logging settings for the Glyphoxa server.
@@ -144,6 +200,29 @@ type NPCConfig struct {
 
 	// BudgetTier constrains which tools are offered to the LLM based on latency.
 	BudgetTier BudgetTier `yaml:"budget_tier"`
+
+	// CascadeMode controls the dual-model sentence cascade for this NPC.
+	// Only effective when Engine is [EngineSentenceCascade]. Defaults to "off".
+	CascadeMode CascadeMode `yaml:"cascade_mode"`
+
+	// CascadeConfig holds sentence-cascade-specific settings.
+	// Only used when Engine is [EngineSentenceCascade].
+	CascadeConfig *CascadeConfig `yaml:"cascade,omitempty"`
+}
+
+// CascadeConfig holds configuration for the dual-model sentence cascade engine.
+type CascadeConfig struct {
+	// FastModel selects the small, fast model for generating the opener sentence.
+	// Uses the default LLM provider if empty, with the model specified here.
+	FastModel string `yaml:"fast_model"`
+
+	// StrongModel selects the large model for generating the substantive continuation.
+	// Uses the default LLM provider if empty, with the model specified here.
+	StrongModel string `yaml:"strong_model"`
+
+	// OpenerInstruction is appended to the fast model's system prompt to guide
+	// the opening sentence. Defaults to a built-in instruction if empty.
+	OpenerInstruction string `yaml:"opener_instruction,omitempty"`
 }
 
 // VoiceConfig specifies the TTS voice parameters for an NPC.

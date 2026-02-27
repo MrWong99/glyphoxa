@@ -176,7 +176,7 @@ func TestNPCDefinition_Validate(t *testing.T) {
 				Name:   "NPC",
 				Engine: "turbo",
 			},
-			wantErr: []string{`engine must be "cascaded" or "s2s"`},
+			wantErr: []string{`engine must be "cascaded", "s2s", or "sentence_cascade"`},
 		},
 		{
 			name: "invalid budget tier",
