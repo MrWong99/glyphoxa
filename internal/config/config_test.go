@@ -7,13 +7,10 @@ import (
 	"testing"
 
 	"github.com/MrWong99/glyphoxa/internal/config"
-	"github.com/MrWong99/glyphoxa/pkg/audio"
 	"github.com/MrWong99/glyphoxa/pkg/provider/embeddings"
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
-	"github.com/MrWong99/glyphoxa/pkg/provider/s2s"
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
-	"github.com/MrWong99/glyphoxa/pkg/provider/vad"
 )
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -431,23 +428,3 @@ func (s *stubEmbeddings) EmbedBatch(_ context.Context, _ []string) ([][]float32,
 }
 func (s *stubEmbeddings) Dimensions() int { return 0 }
 func (s *stubEmbeddings) ModelID() string { return "stub" }
-
-// stubS2S implements s2s.Provider.
-type stubS2S struct{}
-
-func (s *stubS2S) Connect(_ context.Context, _ s2s.SessionConfig) (s2s.SessionHandle, error) {
-	return nil, nil
-}
-func (s *stubS2S) Capabilities() s2s.S2SCapabilities { return s2s.S2SCapabilities{} }
-
-// stubVAD implements vad.Engine.
-type stubVAD struct{}
-
-func (s *stubVAD) NewSession(_ vad.Config) (vad.SessionHandle, error) { return nil, nil }
-
-// stubAudio implements audio.Platform.
-type stubAudio struct{}
-
-func (s *stubAudio) Connect(_ context.Context, _ string) (audio.Connection, error) {
-	return nil, nil
-}

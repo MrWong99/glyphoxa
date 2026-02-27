@@ -151,13 +151,13 @@ func TestSelect_DMOverride_AlwaysWins(t *testing.T) {
 	s := tier.NewSelector()
 
 	// Even DEEP keyword text should be overridden by BudgetFast override.
-	got := s.Select("think carefully about everything in detail", mcp.BudgetFast)
+	_ = s.Select("think carefully about everything in detail", mcp.BudgetFast)
 	// Wait — BudgetFast is the zero value! The spec says "non-zero returns it".
 	// So passing BudgetFast (0) as dmOverride means "no override" per the interface.
 	// Use BudgetStandard (1) or BudgetDeep (2) to test the override path.
 
 	// Test STANDARD override on a plain-text utterance.
-	got = s.Select("hello there", mcp.BudgetStandard)
+	got := s.Select("hello there", mcp.BudgetStandard)
 	if got != mcp.BudgetStandard {
 		t.Errorf("DM override STANDARD = %s, want STANDARD", got)
 	}

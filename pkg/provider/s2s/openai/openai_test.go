@@ -77,24 +77,6 @@ func writeJSON(t *testing.T, conn *websocket.Conn, v any) {
 	}
 }
 
-// sendSessionCreated sends the server-side session.created event to unblock the
-// provider's send of session.update.
-func sendSessionCreated(t *testing.T, conn *websocket.Conn) {
-	t.Helper()
-	writeJSON(t, conn, map[string]any{
-		"type": "session.created",
-		"session": map[string]any{
-			"id":    "sess_test",
-			"model": "gpt-4o-realtime-preview",
-		},
-	})
-}
-
-// newProvider creates an OpenAI Provider pointing at the given test server.
-func newProvider(srv *httptest.Server) *openai.Provider {
-	return openai.New("test-api-key", openai.WithBaseURL(wsURL(srv)))
-}
-
 // ── Option constructor tests ───────────────────────────────────────────────────
 
 func TestNew_DefaultValues(t *testing.T) {
