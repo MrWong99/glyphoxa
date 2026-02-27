@@ -152,6 +152,13 @@ func (s *Session) SetKeywords(keywords []stt.KeywordBoost) error {
 	return s.SetKeywordsErr
 }
 
+// SendAudioCallCount returns the number of SendAudio calls. Thread-safe.
+func (s *Session) SendAudioCallCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.SendAudioCalls)
+}
+
 // Close records the call and returns CloseErr.
 func (s *Session) Close() error {
 	s.mu.Lock()

@@ -87,33 +87,26 @@ func parseExpression(expr string) (count, sides, modifier int, err error) {
 	// Parse sides and optional modifier (the part after 'd').
 	rest := after
 
-	before, after, ok := strings.Cut(rest, "+")
-	// Find the minus sign, but not if rest is empty.
-	before, after, ok := strings.Cut(rest, "-")
-
-	switch {
-	case ok:
-		sides, err = strconv.Atoi(before)
+	if s, m, ok := strings.Cut(rest, "+"); ok {
+		sides, err = strconv.Atoi(s)
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("diceroller: invalid sides %q in expression %q", before, expr)
+			return 0, 0, 0, fmt.Errorf("diceroller: invalid sides %q in expression %q", s, expr)
 		}
-		modifier, err = strconv.Atoi(after)
+		modifier, err = strconv.Atoi(m)
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("diceroller: invalid modifier %q in expression %q", after, expr)
+			return 0, 0, 0, fmt.Errorf("diceroller: invalid modifier %q in expression %q", m, expr)
 		}
-
-	case ok:
-		sides, err = strconv.Atoi(before)
+	} else if s, m, ok := strings.Cut(rest, "-"); ok {
+		sides, err = strconv.Atoi(s)
 		if err != nil {
-			return 0, 0, 0, fmt.Errorf("diceroller: invalid sides %q in expression %q", before, expr)
+			return 0, 0, 0, fmt.Errorf("diceroller: invalid sides %q in expression %q", s, expr)
 		}
-		mod, err2 := strconv.Atoi(after)
+		mod, err2 := strconv.Atoi(m)
 		if err2 != nil {
-			return 0, 0, 0, fmt.Errorf("diceroller: invalid modifier %q in expression %q", after, expr)
+			return 0, 0, 0, fmt.Errorf("diceroller: invalid modifier %q in expression %q", m, expr)
 		}
 		modifier = -mod
-
-	default:
+	} else {
 		sides, err = strconv.Atoi(rest)
 		if err != nil {
 			return 0, 0, 0, fmt.Errorf("diceroller: invalid sides %q in expression %q", rest, expr)

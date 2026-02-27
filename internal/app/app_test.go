@@ -218,12 +218,12 @@ func TestApp_RunAndShutdown(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// VAD should have processed at least one frame.
-	if got := len(vadSession.ProcessFrameCalls); got < 1 {
+	if got := vadSession.ProcessFrameCallCount(); got < 1 {
 		t.Errorf("VAD ProcessFrame calls = %d, want >= 1", got)
 	}
 
 	// STT should have received audio.
-	if got := len(sttSession.SendAudioCalls); got < 1 {
+	if got := sttSession.SendAudioCallCount(); got < 1 {
 		t.Errorf("STT SendAudio calls = %d, want >= 1", got)
 	}
 

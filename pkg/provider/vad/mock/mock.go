@@ -120,6 +120,13 @@ func (s *Session) Close() error {
 	return s.CloseErr
 }
 
+// ProcessFrameCallCount returns the number of ProcessFrame calls. Thread-safe.
+func (s *Session) ProcessFrameCallCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.ProcessFrameCalls)
+}
+
 // ResetCalls clears all recorded call history. Thread-safe.
 func (s *Session) ResetCalls() {
 	s.mu.Lock()
