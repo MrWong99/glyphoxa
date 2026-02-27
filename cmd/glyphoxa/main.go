@@ -10,7 +10,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/MrWong99/glyphoxa/internal/app"
 	"github.com/MrWong99/glyphoxa/internal/config"
 )
 
@@ -26,7 +28,6 @@ func run() int {
 	// ── Load configuration ────────────────────────────────────────────────────
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		// If the file simply doesn't exist (common during dev), show a helpful hint.
 		if errors.Is(err, os.ErrNotExist) {
 			fmt.Fprintf(os.Stderr, "glyphoxa: config file %q not found — copy configs/example.yaml to get started\n", *configPath)
 		} else {
@@ -55,20 +56,36 @@ func run() int {
 		slog.Error("failed to build providers", "err", err)
 		return 1
 	}
-	_ = providers // providers will be wired into the engine in a later phase
 
 	// ── Startup summary ───────────────────────────────────────────────────────
 	printStartupSummary(cfg)
 
-	// ── Graceful shutdown ─────────────────────────────────────────────────────
+	// ── Application wiring ────────────────────────────────────────────────────
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	application, err := app.New(ctx, cfg, providers)
+	if err != nil {
+		slog.Error("failed to initialise application", "err", err)
+		return 1
+	}
+
 	slog.Info("server ready — press Ctrl+C to shut down")
-	<-ctx.Done()
+
+	if err := application.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		slog.Error("run error", "err", err)
+		return 1
+	}
+
+	// ── Graceful shutdown ─────────────────────────────────────────────────────
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
 	slog.Info("shutdown signal received, stopping…")
-	// Future: close engine, disconnect audio platform, etc.
+	if err := application.Shutdown(shutdownCtx); err != nil {
+		slog.Error("shutdown error", "err", err)
+		return 1
+	}
 	slog.Info("goodbye")
 	return 0
 }
@@ -95,65 +112,97 @@ func registerBuiltinProviders(reg *config.Registry) {
 			slog.Debug("registered provider", "kind", kind, "name", name)
 		}
 	}
-	_ = reg // wired in Phase 3
+	_ = reg // wired when real provider factories land
 }
 
-// providerSet holds the instantiated providers for this run.
-// Unexported fields will be populated as factory implementations land.
-type providerSet struct {
-	// All fields are interface values; nil means the provider is not configured.
-	// Concrete types come in Phase 2.
-}
+// buildProviders instantiates all providers named in cfg using the registry
+// and returns them in an [app.Providers] struct for the application to consume.
+func buildProviders(cfg *config.Config, reg *config.Registry) (*app.Providers, error) {
+	ps := &app.Providers{}
 
-// buildProviders instantiates all providers named in cfg using the registry.
-// For providers whose factory is not yet registered, a debug log is emitted
-// and the slot is left nil (graceful stub behaviour for Phase 1).
-func buildProviders(cfg *config.Config, reg *config.Registry) (*providerSet, error) {
-	ps := &providerSet{}
-
-	tryCreate := func(kind, name string, create func() error) {
-		if name == "" {
-			return
-		}
-		if err := create(); err != nil {
-			if errors.Is(err, config.ErrProviderNotRegistered) {
-				slog.Debug("provider not yet implemented — skipping", "kind", kind, "name", name)
-			} else {
-				slog.Warn("failed to create provider", "kind", kind, "name", name, "err", err)
-			}
+	if name := cfg.Providers.LLM.Name; name != "" {
+		p, err := reg.CreateLLM(cfg.Providers.LLM)
+		if errors.Is(err, config.ErrProviderNotRegistered) {
+			slog.Debug("provider not yet implemented — skipping", "kind", "llm", "name", name)
+		} else if err != nil {
+			return nil, fmt.Errorf("create llm provider %q: %w", name, err)
 		} else {
-			slog.Info("provider created", "kind", kind, "name", name)
+			ps.LLM = p
+			slog.Info("provider created", "kind", "llm", "name", name)
 		}
 	}
 
-	tryCreate("llm", cfg.Providers.LLM.Name, func() error {
-		_, err := reg.CreateLLM(cfg.Providers.LLM)
-		return err
-	})
-	tryCreate("stt", cfg.Providers.STT.Name, func() error {
-		_, err := reg.CreateSTT(cfg.Providers.STT)
-		return err
-	})
-	tryCreate("tts", cfg.Providers.TTS.Name, func() error {
-		_, err := reg.CreateTTS(cfg.Providers.TTS)
-		return err
-	})
-	tryCreate("s2s", cfg.Providers.S2S.Name, func() error {
-		_, err := reg.CreateS2S(cfg.Providers.S2S)
-		return err
-	})
-	tryCreate("embeddings", cfg.Providers.Embeddings.Name, func() error {
-		_, err := reg.CreateEmbeddings(cfg.Providers.Embeddings)
-		return err
-	})
-	tryCreate("vad", cfg.Providers.VAD.Name, func() error {
-		_, err := reg.CreateVAD(cfg.Providers.VAD)
-		return err
-	})
-	tryCreate("audio", cfg.Providers.Audio.Name, func() error {
-		_, err := reg.CreateAudio(cfg.Providers.Audio)
-		return err
-	})
+	if name := cfg.Providers.STT.Name; name != "" {
+		p, err := reg.CreateSTT(cfg.Providers.STT)
+		if errors.Is(err, config.ErrProviderNotRegistered) {
+			slog.Debug("provider not yet implemented — skipping", "kind", "stt", "name", name)
+		} else if err != nil {
+			return nil, fmt.Errorf("create stt provider %q: %w", name, err)
+		} else {
+			ps.STT = p
+			slog.Info("provider created", "kind", "stt", "name", name)
+		}
+	}
+
+	if name := cfg.Providers.TTS.Name; name != "" {
+		p, err := reg.CreateTTS(cfg.Providers.TTS)
+		if errors.Is(err, config.ErrProviderNotRegistered) {
+			slog.Debug("provider not yet implemented — skipping", "kind", "tts", "name", name)
+		} else if err != nil {
+			return nil, fmt.Errorf("create tts provider %q: %w", name, err)
+		} else {
+			ps.TTS = p
+			slog.Info("provider created", "kind", "tts", "name", name)
+		}
+	}
+
+	if name := cfg.Providers.S2S.Name; name != "" {
+		p, err := reg.CreateS2S(cfg.Providers.S2S)
+		if errors.Is(err, config.ErrProviderNotRegistered) {
+			slog.Debug("provider not yet implemented — skipping", "kind", "s2s", "name", name)
+		} else if err != nil {
+			return nil, fmt.Errorf("create s2s provider %q: %w", name, err)
+		} else {
+			ps.S2S = p
+			slog.Info("provider created", "kind", "s2s", "name", name)
+		}
+	}
+
+	if name := cfg.Providers.Embeddings.Name; name != "" {
+		p, err := reg.CreateEmbeddings(cfg.Providers.Embeddings)
+		if errors.Is(err, config.ErrProviderNotRegistered) {
+			slog.Debug("provider not yet implemented — skipping", "kind", "embeddings", "name", name)
+		} else if err != nil {
+			return nil, fmt.Errorf("create embeddings provider %q: %w", name, err)
+		} else {
+			ps.Embeddings = p
+			slog.Info("provider created", "kind", "embeddings", "name", name)
+		}
+	}
+
+	if name := cfg.Providers.VAD.Name; name != "" {
+		p, err := reg.CreateVAD(cfg.Providers.VAD)
+		if errors.Is(err, config.ErrProviderNotRegistered) {
+			slog.Debug("provider not yet implemented — skipping", "kind", "vad", "name", name)
+		} else if err != nil {
+			return nil, fmt.Errorf("create vad provider %q: %w", name, err)
+		} else {
+			ps.VAD = p
+			slog.Info("provider created", "kind", "vad", "name", name)
+		}
+	}
+
+	if name := cfg.Providers.Audio.Name; name != "" {
+		p, err := reg.CreateAudio(cfg.Providers.Audio)
+		if errors.Is(err, config.ErrProviderNotRegistered) {
+			slog.Debug("provider not yet implemented — skipping", "kind", "audio", "name", name)
+		} else if err != nil {
+			return nil, fmt.Errorf("create audio provider %q: %w", name, err)
+		} else {
+			ps.Audio = p
+			slog.Info("provider created", "kind", "audio", "name", name)
+		}
+	}
 
 	return ps, nil
 }
@@ -186,7 +235,6 @@ func printProvider(kind, name, model string) {
 	} else if model != "" {
 		value = name + " / " + model
 	}
-	// Truncate to fit the box (19 chars)
 	if len(value) > 19 {
 		value = value[:16] + "…"
 	}
