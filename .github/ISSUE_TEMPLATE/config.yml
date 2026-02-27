@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Design Documents
+    url: https://github.com/MrWong99/glyphoxa/tree/main/docs/design
+    about: Browse the architecture and design documentation.
+  - name: Research Notes
+    url: https://github.com/MrWong99/glyphoxa/tree/main/research
+    about: Check out the research notes on dual-model cascading and related topics.
