@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
 	"testing"
 
 	"github.com/MrWong99/glyphoxa/internal/agent"
@@ -306,11 +305,8 @@ func TestHandleUtterance_AssemblerError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error from assembler, got nil")
 	}
-	if !errors.Is(err, nil) {
-		// Just verify it has the right prefix.
-		if got := err.Error(); len(got) == 0 {
-			t.Error("expected non-empty error message")
-		}
+	if got := err.Error(); len(got) == 0 {
+		t.Error("expected non-empty error message")
 	}
 
 	// Engine should NOT have been called since assembly failed.
@@ -379,13 +375,15 @@ func TestHandleUtterance_ContextCancelled(t *testing.T) {
 func TestHandleUtterance_ConcurrentCallsSerialised(t *testing.T) {
 	t.Parallel()
 
-	var callOrder atomic.Int32
-
 	eng := &enginemock.VoiceEngine{}
-	// We'll assign ProcessResult dynamically based on call order.
+	// A pre-closed audio channel is safe to read from any number of times;
+	// it returns immediately with the zero value, making it suitable for
+	// concurrent use without separate channel instances per goroutine.
+	ch := make(chan []byte)
+	close(ch)
 	eng.ProcessResult = &engine.Response{
 		Text:  "Response",
-		Audio: closedAudioCh(),
+		Audio: ch,
 	}
 
 	cfg := validConfig()
@@ -404,14 +402,6 @@ func TestHandleUtterance_ConcurrentCallsSerialised(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			// Each call needs its own audio channel for the response.
-			ch := make(chan []byte)
-			close(ch)
-			eng.ProcessResult = &engine.Response{
-				Text:  "Response",
-				Audio: ch,
-			}
-			callOrder.Add(1)
 			transcript := stt.Transcript{Text: "Hello.", IsFinal: true}
 			errs[i] = a.HandleUtterance(context.Background(), "player-1", transcript)
 		}()

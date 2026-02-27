@@ -88,18 +88,18 @@ type VoiceConfig struct {
 }
 
 // validEngines is the set of accepted Engine values.
-var validEngines = map[string]bool{
-	"":          true, // empty defaults to "cascaded"
-	"cascaded":  true,
-	"s2s":       true,
+var validEngines = map[string]struct{}{
+	"":         {}, // empty defaults to "cascaded"
+	"cascaded": {},
+	"s2s":      {},
 }
 
 // validBudgetTiers is the set of accepted BudgetTier values.
-var validBudgetTiers = map[string]bool{
-	"":         true, // empty defaults to "fast"
-	"fast":     true,
-	"standard": true,
-	"deep":     true,
+var validBudgetTiers = map[string]struct{}{
+	"":         {}, // empty defaults to "fast"
+	"fast":     {},
+	"standard": {},
+	"deep":     {},
 }
 
 // Validate checks the NPCDefinition for logical consistency. It returns a
@@ -112,11 +112,11 @@ func (d *NPCDefinition) Validate() error {
 		errs = append(errs, fmt.Errorf("npcstore: name must not be empty"))
 	}
 
-	if !validEngines[d.Engine] {
+	if _, ok := validEngines[d.Engine]; !ok {
 		errs = append(errs, fmt.Errorf("npcstore: engine must be \"cascaded\" or \"s2s\", got %q", d.Engine))
 	}
 
-	if !validBudgetTiers[d.BudgetTier] {
+	if _, ok := validBudgetTiers[d.BudgetTier]; !ok {
 		errs = append(errs, fmt.Errorf("npcstore: budget_tier must be \"fast\", \"standard\", or \"deep\", got %q", d.BudgetTier))
 	}
 

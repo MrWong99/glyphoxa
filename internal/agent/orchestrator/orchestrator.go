@@ -2,6 +2,7 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -105,23 +106,29 @@ func (o *Orchestrator) Route(ctx context.Context, speaker string, transcript stt
 	}
 
 	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	targetID, err := o.detector.Detect(transcript.Text, o.lastSpeaker, o.agents, o.dmOverrides, speaker)
 	if err != nil {
+		o.mu.Unlock()
 		return nil, err
 	}
 
 	entry, ok := o.agents[targetID]
 	if !ok || entry.muted {
+		o.mu.Unlock()
 		return nil, ErrNoTarget
 	}
 
 	// Update last speaker for conversational continuity.
 	o.lastSpeaker = targetID
 
-	// Inject cross-NPC context.
+	// Snapshot the buffer and capture the agent reference while holding the
+	// lock, then release before any I/O so that MuteAgent, AddAgent, etc.
+	// are not blocked during the InjectContext call.
 	recent := o.buffer.Recent(targetID, defaultBufferSize)
+	targetAgent := entry.agent
+	o.mu.Unlock()
+
+	// Inject cross-NPC context outside the lock.
 	if len(recent) > 0 {
 		entries := make([]memory.TranscriptEntry, len(recent))
 		for i, r := range recent {
@@ -133,14 +140,14 @@ func (o *Orchestrator) Route(ctx context.Context, speaker string, transcript stt
 				Timestamp:   r.Timestamp,
 			}
 		}
-		if injectErr := entry.agent.Engine().InjectContext(ctx, engine.ContextUpdate{
+		if injectErr := targetAgent.Engine().InjectContext(ctx, engine.ContextUpdate{
 			RecentUtterances: entries,
 		}); injectErr != nil {
 			return nil, fmt.Errorf("orchestrator: inject context: %w", injectErr)
 		}
 	}
 
-	return entry.agent, nil
+	return targetAgent, nil
 }
 
 // ActiveAgents returns a snapshot of all NPC agents currently managed by
@@ -250,27 +257,37 @@ func (o *Orchestrator) RemoveAgent(id string) error {
 	return nil
 }
 
+// agentSnapshot pairs an agent reference with its muted state, captured
+// atomically under the orchestrator lock for use outside the lock.
+type agentSnapshot struct {
+	agent agent.NPCAgent
+	muted bool
+}
+
 // BroadcastScene pushes a scene update to all active (unmuted) agents.
-// Errors from individual agents are collected; the first encountered error
-// is returned, but all agents are attempted regardless.
+// Errors from individual agents are collected; all agents are attempted
+// regardless of individual failures. If multiple agents fail, the returned
+// error is a joined error containing one wrapped error per failing agent.
 func (o *Orchestrator) BroadcastScene(ctx context.Context, scene agent.SceneContext) error {
+	// Snapshot muted state under the read lock so that callers to MuteAgent /
+	// UnmuteAgent do not race with the loop below reading entry.muted.
 	o.mu.RLock()
-	agents := make([]*agentEntry, 0, len(o.agents))
+	snapshots := make([]agentSnapshot, 0, len(o.agents))
 	for _, e := range o.agents {
-		agents = append(agents, e)
+		snapshots = append(snapshots, agentSnapshot{agent: e.agent, muted: e.muted})
 	}
 	o.mu.RUnlock()
 
-	var firstErr error
-	for _, e := range agents {
-		if e.muted {
+	var errs []error
+	for _, s := range snapshots {
+		if s.muted {
 			continue
 		}
-		if err := e.agent.UpdateScene(ctx, scene); err != nil && firstErr == nil {
-			firstErr = fmt.Errorf("orchestrator: broadcast scene: %w", err)
+		if err := s.agent.UpdateScene(ctx, scene); err != nil {
+			errs = append(errs, fmt.Errorf("orchestrator: broadcast scene for %q: %w", s.agent.ID(), err))
 		}
 	}
-	return firstErr
+	return errors.Join(errs...)
 }
 
 // rebuildDetector rebuilds the address detector's name index from the current

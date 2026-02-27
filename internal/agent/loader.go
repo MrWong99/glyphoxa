@@ -42,12 +42,18 @@ func WithMixer(mixer audio.Mixer) LoaderOption {
 // NewLoader creates a [Loader] with the given shared dependencies.
 //
 // assembler is the hot-context assembler shared by all agents created by this
-// loader. sessionID is the session identifier used for transcript retrieval.
-// Both are required; passing nil or empty values will cause [Loader.Load] to
-// return validation errors.
+// loader; it must be non-nil. sessionID is the session identifier used for
+// transcript retrieval; it must be non-empty. NewLoader returns an error if
+// either precondition is violated.
 //
 // Use [WithMCPHost] and [WithMixer] to configure optional dependencies.
-func NewLoader(assembler *hotctx.Assembler, sessionID string, opts ...LoaderOption) *Loader {
+func NewLoader(assembler *hotctx.Assembler, sessionID string, opts ...LoaderOption) (*Loader, error) {
+	if assembler == nil {
+		return nil, errors.New("agent: NewLoader requires non-nil Assembler")
+	}
+	if sessionID == "" {
+		return nil, errors.New("agent: NewLoader requires non-empty SessionID")
+	}
 	l := &Loader{
 		assembler: assembler,
 		sessionID: sessionID,
@@ -55,7 +61,7 @@ func NewLoader(assembler *hotctx.Assembler, sessionID string, opts ...LoaderOpti
 	for _, o := range opts {
 		o(l)
 	}
-	return l
+	return l, nil
 }
 
 // Load creates an [NPCAgent] from the given identity and engine.
@@ -69,13 +75,6 @@ func NewLoader(assembler *hotctx.Assembler, sessionID string, opts ...LoaderOpti
 //
 // Errors are prefixed with "agent: ".
 func (l *Loader) Load(id string, identity NPCIdentity, eng engine.VoiceEngine, budgetTier mcp.BudgetTier) (NPCAgent, error) {
-	if l.assembler == nil {
-		return nil, errors.New("agent: Loader has nil Assembler")
-	}
-	if l.sessionID == "" {
-		return nil, errors.New("agent: Loader has empty SessionID")
-	}
-
 	return NewAgent(AgentConfig{
 		ID:         id,
 		Identity:   identity,

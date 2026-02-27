@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -406,6 +405,4 @@ func isDuplicateKeyError(err error) bool {
 	return false
 }
 
-// now is a package-level function variable for testing. In production it
-// returns [time.Now]; tests can override it to return deterministic times.
-var now = time.Now
+

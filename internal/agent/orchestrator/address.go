@@ -6,6 +6,7 @@ package orchestrator
 
 import (
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/MrWong99/glyphoxa/internal/agent"
@@ -132,13 +133,11 @@ func (d *AddressDetector) matchName(text string, activeAgents map[string]*agentE
 	for key, id := range d.nameIndex {
 		candidates = append(candidates, candidate{key: key, id: id})
 	}
-	// Sort descending by key length; stable within same length by insertion order
-	// isn't required, but we sort for determinism.
-	for i := 1; i < len(candidates); i++ {
-		for j := i; j > 0 && len(candidates[j].key) > len(candidates[j-1].key); j-- {
-			candidates[j], candidates[j-1] = candidates[j-1], candidates[j]
-		}
-	}
+	// Sort descending by key length so that more specific (longer) names are
+	// matched before shorter fragments. slices.SortFunc is O(n log n).
+	slices.SortFunc(candidates, func(a, b candidate) int {
+		return len(b.key) - len(a.key) // descending
+	})
 
 	for _, c := range candidates {
 		if strings.Contains(lower, c.key) {

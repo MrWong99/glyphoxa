@@ -16,9 +16,12 @@ func TestNewLoader(t *testing.T) {
 	t.Parallel()
 
 	assembler := testAssembler()
-	loader := agent.NewLoader(assembler, "session-001")
+	loader, err := agent.NewLoader(assembler, "session-001")
+	if err != nil {
+		t.Fatalf("NewLoader returned unexpected error: %v", err)
+	}
 	if loader == nil {
-		t.Fatal("NewLoader returned nil")
+		t.Fatal("NewLoader returned nil loader")
 	}
 }
 
@@ -33,7 +36,10 @@ func TestLoader_Load_Valid(t *testing.T) {
 		},
 	}
 
-	loader := agent.NewLoader(assembler, "session-001")
+	loader, err := agent.NewLoader(assembler, "session-001")
+	if err != nil {
+		t.Fatalf("NewLoader returned unexpected error: %v", err)
+	}
 	a, err := loader.Load("npc-1", testIdentity(), eng, mcp.BudgetFast)
 	if err != nil {
 		t.Fatalf("Load returned error: %v", err)
@@ -55,10 +61,7 @@ func TestLoader_Load_Valid(t *testing.T) {
 func TestLoader_Load_NilAssembler(t *testing.T) {
 	t.Parallel()
 
-	loader := agent.NewLoader(nil, "session-001")
-	eng := &enginemock.VoiceEngine{}
-
-	_, err := loader.Load("npc-1", testIdentity(), eng, mcp.BudgetFast)
+	_, err := agent.NewLoader(nil, "session-001")
 	if err == nil {
 		t.Fatal("expected error for nil assembler, got nil")
 	}
@@ -68,10 +71,7 @@ func TestLoader_Load_EmptySessionID(t *testing.T) {
 	t.Parallel()
 
 	assembler := testAssembler()
-	loader := agent.NewLoader(assembler, "")
-	eng := &enginemock.VoiceEngine{}
-
-	_, err := loader.Load("npc-1", testIdentity(), eng, mcp.BudgetFast)
+	_, err := agent.NewLoader(assembler, "")
 	if err == nil {
 		t.Fatal("expected error for empty session ID, got nil")
 	}
@@ -83,8 +83,11 @@ func TestLoader_Load_EmptyNPCID(t *testing.T) {
 	assembler := testAssembler()
 	eng := &enginemock.VoiceEngine{}
 
-	loader := agent.NewLoader(assembler, "session-001")
-	_, err := loader.Load("", testIdentity(), eng, mcp.BudgetFast)
+	loader, err := agent.NewLoader(assembler, "session-001")
+	if err != nil {
+		t.Fatalf("NewLoader returned unexpected error: %v", err)
+	}
+	_, err = loader.Load("", testIdentity(), eng, mcp.BudgetFast)
 	if err == nil {
 		t.Fatal("expected error for empty NPC ID, got nil")
 	}
@@ -94,8 +97,11 @@ func TestLoader_Load_NilEngine(t *testing.T) {
 	t.Parallel()
 
 	assembler := testAssembler()
-	loader := agent.NewLoader(assembler, "session-001")
-	_, err := loader.Load("npc-1", testIdentity(), nil, mcp.BudgetFast)
+	loader, err := agent.NewLoader(assembler, "session-001")
+	if err != nil {
+		t.Fatalf("NewLoader returned unexpected error: %v", err)
+	}
+	_, err = loader.Load("npc-1", testIdentity(), nil, mcp.BudgetFast)
 	if err == nil {
 		t.Fatal("expected error for nil engine, got nil")
 	}
@@ -117,7 +123,10 @@ func TestLoader_WithMCPHost(t *testing.T) {
 		},
 	}
 
-	loader := agent.NewLoader(assembler, "session-001", agent.WithMCPHost(mcpHost))
+	loader, err := agent.NewLoader(assembler, "session-001", agent.WithMCPHost(mcpHost))
+	if err != nil {
+		t.Fatalf("NewLoader returned unexpected error: %v", err)
+	}
 	a, err := loader.Load("npc-1", testIdentity(), eng, mcp.BudgetStandard)
 	if err != nil {
 		t.Fatalf("Load with MCPHost returned error: %v", err)
@@ -154,7 +163,10 @@ func TestLoader_WithMixer(t *testing.T) {
 		},
 	}
 
-	loader := agent.NewLoader(assembler, "session-001", agent.WithMixer(mixer))
+	loader, err := agent.NewLoader(assembler, "session-001", agent.WithMixer(mixer))
+	if err != nil {
+		t.Fatalf("NewLoader returned unexpected error: %v", err)
+	}
 	a, err := loader.Load("npc-1", testIdentity(), eng, mcp.BudgetFast)
 	if err != nil {
 		t.Fatalf("Load with Mixer returned error: %v", err)
@@ -172,7 +184,10 @@ func TestLoader_MultipleAgents(t *testing.T) {
 	t.Parallel()
 
 	assembler := testAssembler()
-	loader := agent.NewLoader(assembler, "session-001")
+	loader, err := agent.NewLoader(assembler, "session-001")
+	if err != nil {
+		t.Fatalf("NewLoader returned unexpected error: %v", err)
+	}
 
 	eng1 := &enginemock.VoiceEngine{
 		ProcessResult: &engine.Response{Text: "A", Audio: closedAudioCh()},

@@ -257,11 +257,23 @@ func (a *liveAgent) HandleUtterance(ctx context.Context, speaker string, transcr
 // under lock and injected into the engine via [engine.VoiceEngine.InjectContext]
 // so that subsequent responses reflect the updated environment.
 func (a *liveAgent) UpdateScene(ctx context.Context, scene SceneContext) error {
+	// Snapshot both the new scene and the current conversation history in a
+	// single lock acquisition so that the two pieces of state are consistent
+	// with each other and cannot be interleaved with a concurrent HandleUtterance.
 	a.mu.Lock()
 	a.scene = scene
+	recentEntries := make([]memory.TranscriptEntry, 0, len(a.messages))
+	for _, msg := range a.messages {
+		recentEntries = append(recentEntries, memory.TranscriptEntry{
+			SpeakerID:   msg.Name,
+			SpeakerName: msg.Name,
+			Text:        msg.Content,
+			Timestamp:   time.Now(),
+		})
+	}
 	a.mu.Unlock()
 
-	// Build a scene description string for the engine.
+	// Build a scene description string outside the lock; scene is a value copy.
 	var parts []string
 	if scene.Location != "" {
 		parts = append(parts, "Location: "+scene.Location)
@@ -276,19 +288,6 @@ func (a *liveAgent) UpdateScene(ctx context.Context, scene SceneContext) error {
 		parts = append(parts, "Quests: "+strings.Join(scene.ActiveQuests, ", "))
 	}
 	sceneStr := strings.Join(parts, "; ")
-
-	// Gather recent transcript entries from messages for the context update.
-	a.mu.Lock()
-	var recentEntries []memory.TranscriptEntry
-	for _, msg := range a.messages {
-		recentEntries = append(recentEntries, memory.TranscriptEntry{
-			SpeakerID:   msg.Name,
-			SpeakerName: msg.Name,
-			Text:        msg.Content,
-			Timestamp:   time.Now(),
-		})
-	}
-	a.mu.Unlock()
 
 	update := engine.ContextUpdate{
 		Scene:            sceneStr,
