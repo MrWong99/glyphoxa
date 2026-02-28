@@ -107,6 +107,18 @@ func (s *SessionStoreImpl) Search(ctx context.Context, query string, opts memory
 	return collectEntries(rows)
 }
 
+// EntryCount implements [memory.SessionStore]. It returns the total number of
+// transcript entries for sessionID.
+func (s *SessionStoreImpl) EntryCount(ctx context.Context, sessionID string) (int, error) {
+	const q = `SELECT count(*) FROM session_entries WHERE session_id = $1`
+
+	var count int
+	if err := s.pool.QueryRow(ctx, q, sessionID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("session store: entry count: %w", err)
+	}
+	return count, nil
+}
+
 // collectEntries scans pgx rows into a slice of TranscriptEntry values.
 func collectEntries(rows pgx.Rows) ([]memory.TranscriptEntry, error) {
 	entries, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (memory.TranscriptEntry, error) {

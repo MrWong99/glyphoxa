@@ -50,6 +50,7 @@ services:
   # ---------------------------------------------------------------------------
   whisper-model-download:
     image: curlimages/curl:latest
+    user: root
     profiles:
       - local
     volumes:
@@ -80,6 +81,13 @@ services:
       - ./config.yaml:/etc/glyphoxa/config.yaml:ro
       - whisper_models:/models:ro
     command: ["-config", "/etc/glyphoxa/config.yaml"]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,6 +104,13 @@ services:
       - ollama_data:/root/.ollama
     profiles:
       - local
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 10s
@@ -134,15 +149,22 @@ services:
   # For GPU: swap image to ghcr.io/coqui-ai/tts
   # ---------------------------------------------------------------------------
   tts:
-    image: ghcr.io/coqui-ai/tts-cpu
+    image: ghcr.io/coqui-ai/tts
     ports:
       - "5002:5002"
     profiles:
       - local
     entrypoint: ["tts-server"]
-    command: ["--model_name", "tts_models/en/ljspeech/vits", "--port", "5002"]
+    command: ["--model_name", "tts_models/en/ljspeech/vits", "--port", "5002", "--use_cuda", "true"]
     volumes:
       - tts_models:/root/.local/share/tts
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/')"]
       interval: 15s
@@ -151,8 +173,50 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  # ---------------------------------------------------------------------------
+  # Prometheus — metrics scraping
+  # Enabled with: docker compose --profile alpha up
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    profiles:
+      - alpha
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Grafana — dashboards and alerting
+  # Enabled with: docker compose --profile alpha up
+  # Default login: admin / admin
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    profiles:
+      - alpha
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   pgdata:
   ollama_data:
   tts_models:
   whisper_models:
+  prometheus_data:
+  grafana_data:

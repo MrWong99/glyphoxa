@@ -74,3 +74,14 @@ func FollowUp(s *discordgo.Session, i *discordgo.InteractionCreate, content stri
 		slog.Warn("discord: failed to send follow-up", "err", err)
 	}
 }
+
+// FollowUpEmbed sends an embed follow-up message after a deferred response.
+func FollowUpEmbed(s *discordgo.Session, i *discordgo.InteractionCreate, embed *discordgo.MessageEmbed) {
+	_, err := s.FollowupMessageCreate(i.Interaction, true, &discordgo.WebhookParams{
+		Embeds: []*discordgo.MessageEmbed{embed},
+		Flags:  discordgo.MessageFlagsEphemeral,
+	})
+	if err != nil {
+		slog.Warn("discord: failed to send embed follow-up", "err", err)
+	}
+}

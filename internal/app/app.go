@@ -275,7 +275,7 @@ func (a *App) initAgents(ctx context.Context) error {
 
 	var agents []agent.NPCAgent
 	for i, npc := range a.cfg.NPCs {
-		eng, err := a.buildEngine(npc)
+		eng, err := buildEngine(a.providers, npc)
 		if err != nil {
 			return fmt.Errorf("build engine for NPC %q (index %d): %w", npc.Name, i, err)
 		}
@@ -305,30 +305,31 @@ func (a *App) initAgents(ctx context.Context) error {
 }
 
 // buildEngine constructs the appropriate VoiceEngine for an NPC config.
-func (a *App) buildEngine(npc config.NPCConfig) (engine.VoiceEngine, error) {
+// This is a package-level function so both App and SessionManager can use it.
+func buildEngine(providers *Providers, npc config.NPCConfig) (engine.VoiceEngine, error) {
 	voice := configVoiceProfile(npc.Voice)
 
 	switch npc.Engine {
 	case config.EngineCascaded, config.EngineSentenceCascade:
-		if a.providers.LLM == nil {
+		if providers.LLM == nil {
 			return nil, fmt.Errorf("cascaded engine requires an LLM provider")
 		}
-		if a.providers.TTS == nil {
+		if providers.TTS == nil {
 			return nil, fmt.Errorf("cascaded engine requires a TTS provider")
 		}
 		return cascade.New(
-			a.providers.LLM, // fast LLM
-			a.providers.LLM, // strong LLM (same for now; cascade config can override)
-			a.providers.TTS,
+			providers.LLM, // fast LLM
+			providers.LLM, // strong LLM (same for now; cascade config can override)
+			providers.TTS,
 			voice,
 		), nil
 
 	case config.EngineS2S:
-		if a.providers.S2S == nil {
+		if providers.S2S == nil {
 			return nil, fmt.Errorf("s2s engine requires an S2S provider")
 		}
 		return s2sengine.New(
-			a.providers.S2S,
+			providers.S2S,
 			providers2s.SessionConfig{
 				Voice:        voice,
 				Instructions: npc.Personality,

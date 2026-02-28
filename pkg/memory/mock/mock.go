@@ -62,6 +62,12 @@ type SessionStore struct {
 
 	// SearchErr is returned by [SessionStore.Search] when non-nil.
 	SearchErr error
+
+	// EntryCountResult is returned by [SessionStore.EntryCount].
+	EntryCountResult int
+
+	// EntryCountErr is returned by [SessionStore.EntryCount] when non-nil.
+	EntryCountErr error
 }
 
 // Calls returns a copy of all recorded method invocations.
@@ -125,6 +131,14 @@ func (m *SessionStore) Search(_ context.Context, query string, opts memory.Searc
 	out := make([]memory.TranscriptEntry, len(m.SearchResult))
 	copy(out, m.SearchResult)
 	return out, m.SearchErr
+}
+
+// EntryCount implements [memory.SessionStore].
+func (m *SessionStore) EntryCount(_ context.Context, sessionID string) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.calls = append(m.calls, Call{Method: "EntryCount", Args: []any{sessionID}})
+	return m.EntryCountResult, m.EntryCountErr
 }
 
 // Ensure SessionStore satisfies the interface at compile time.

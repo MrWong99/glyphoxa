@@ -341,6 +341,10 @@ type SessionStore interface {
 	// opts refines the result set by time range, speaker, or session scope.
 	// Returns an empty (non-nil) slice when no entries match.
 	Search(ctx context.Context, query string, opts SearchOpts) ([]TranscriptEntry, error)
+
+	// EntryCount returns the total number of transcript entries stored for
+	// the given session. Returns 0 when the session has no entries.
+	EntryCount(ctx context.Context, sessionID string) (int, error)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

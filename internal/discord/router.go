@@ -2,6 +2,7 @@ package discord
 
 import (
 	"log/slog"
+	"strings"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
@@ -21,20 +22,22 @@ type commandEntry struct {
 
 // CommandRouter dispatches Discord interactions to registered handlers.
 type CommandRouter struct {
-	mu           sync.RWMutex
-	commands     map[string]commandEntry             // "command" or "command/subcommand" → entry
-	autocomplete map[string]AutocompleteFunc          // "command" or "command/subcommand" → handler
-	components   map[string]HandlerFunc               // custom_id → handler (for buttons)
-	modals       map[string]HandlerFunc               // custom_id → handler (for modal submits)
+	mu               sync.RWMutex
+	commands         map[string]commandEntry             // "command" or "command/subcommand" → entry
+	autocomplete     map[string]AutocompleteFunc          // "command" or "command/subcommand" → handler
+	components       map[string]HandlerFunc               // custom_id → handler (for buttons)
+	componentPrefix  map[string]HandlerFunc               // prefix → handler (for buttons with dynamic suffixes)
+	modals           map[string]HandlerFunc               // custom_id → handler (for modal submits)
 }
 
 // NewCommandRouter creates an empty router.
 func NewCommandRouter() *CommandRouter {
 	return &CommandRouter{
-		commands:     make(map[string]commandEntry),
-		autocomplete: make(map[string]AutocompleteFunc),
-		components:   make(map[string]HandlerFunc),
-		modals:       make(map[string]HandlerFunc),
+		commands:        make(map[string]commandEntry),
+		autocomplete:    make(map[string]AutocompleteFunc),
+		components:      make(map[string]HandlerFunc),
+		componentPrefix: make(map[string]HandlerFunc),
+		modals:          make(map[string]HandlerFunc),
 	}
 }
 
@@ -69,6 +72,16 @@ func (r *CommandRouter) RegisterComponent(customID string, handler HandlerFunc) 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.components[customID] = handler
+}
+
+// RegisterComponentPrefix registers a handler that matches any component
+// whose custom_id starts with the given prefix. This is useful for buttons
+// with dynamic suffixes (e.g., "entity_remove_confirm:" matches
+// "entity_remove_confirm:some-id").
+func (r *CommandRouter) RegisterComponentPrefix(prefix string, handler HandlerFunc) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.componentPrefix[prefix] = handler
 }
 
 // RegisterModal registers a handler for a modal submit interaction.
@@ -165,6 +178,16 @@ func (r *CommandRouter) handleComponent(s *discordgo.Session, i *discordgo.Inter
 
 	r.mu.RLock()
 	handler, ok := r.components[customID]
+	if !ok {
+		// Fall back to prefix matching.
+		for prefix, h := range r.componentPrefix {
+			if strings.HasPrefix(customID, prefix) {
+				handler = h
+				ok = true
+				break
+			}
+		}
+	}
 	r.mu.RUnlock()
 
 	if !ok {
