@@ -6,7 +6,7 @@ builds:
     binary: glyphoxa
     env:
       - CGO_ENABLED=1
-      - C_INCLUDE_PATH=/tmp/whisper/include
+      - CGO_CFLAGS=-I/tmp/whisper/include
     goos:
       - linux
     goarch:
@@ -18,13 +18,13 @@ builds:
         env:
           - CC=x86_64-linux-gnu-gcc
           - CXX=x86_64-linux-gnu-g++
-          - LIBRARY_PATH=/tmp/whisper/amd64/lib
+          - CGO_LDFLAGS=-L/tmp/whisper/amd64/lib
       - goos: linux
         goarch: arm64
         env:
           - CC=aarch64-linux-gnu-gcc
           - CXX=aarch64-linux-gnu-g++
-          - LIBRARY_PATH=/tmp/whisper/arm64/lib
+          - CGO_LDFLAGS=-L/tmp/whisper/arm64/lib
     ldflags:
       - -s -w
 
