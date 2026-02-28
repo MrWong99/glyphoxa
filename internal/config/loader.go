@@ -4,11 +4,24 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 
 	"github.com/MrWong99/glyphoxa/internal/mcp"
 	"gopkg.in/yaml.v3"
 )
+
+// ValidProviderNames lists known provider names per provider kind.
+// Used by [Validate] to warn about unrecognised provider names.
+var ValidProviderNames = map[string][]string{
+	"llm":        {"openai", "anthropic", "ollama", "gemini", "deepseek", "mistral", "groq", "llamacpp", "llamafile"},
+	"stt":        {"deepgram", "whisper"},
+	"tts":        {"elevenlabs", "coqui"},
+	"s2s":        {"openai-realtime", "gemini-live"},
+	"embeddings": {"openai", "ollama"},
+	"vad":        {"silero"},
+	"audio":      {"discord"},
+}
 
 // Load reads the YAML configuration file at path and returns a validated [Config].
 // It is a convenience wrapper around [LoadFromReader] and [Validate].
@@ -51,11 +64,45 @@ func Validate(cfg *Config) error {
 		errs = append(errs, fmt.Errorf("server.log_level %q is invalid; valid values: debug, info, warn, error", cfg.Server.LogLevel))
 	}
 
+	// Provider name validation — warn for unknown provider names.
+	validateProviderName("llm", cfg.Providers.LLM.Name)
+	validateProviderName("stt", cfg.Providers.STT.Name)
+	validateProviderName("tts", cfg.Providers.TTS.Name)
+	validateProviderName("s2s", cfg.Providers.S2S.Name)
+	validateProviderName("embeddings", cfg.Providers.Embeddings.Name)
+	validateProviderName("vad", cfg.Providers.VAD.Name)
+	validateProviderName("audio", cfg.Providers.Audio.Name)
+
+	// Provider availability warnings
+	if cfg.Providers.LLM.Name == "" && cfg.Providers.S2S.Name == "" {
+		if len(cfg.NPCs) > 0 {
+			slog.Warn("no LLM or S2S provider configured; NPCs will not be able to generate responses")
+		}
+	}
+
+	// Embeddings ↔ memory dimensions
+	if cfg.Providers.Embeddings.Name != "" && cfg.Memory.EmbeddingDimensions <= 0 {
+		slog.Warn("providers.embeddings is configured but memory.embedding_dimensions is not set; defaulting to 1536")
+	}
+
+	// Memory availability
+	if cfg.Memory.PostgresDSN == "" && len(cfg.NPCs) > 0 {
+		slog.Warn("memory.postgres_dsn is empty; long-term memory will not be available for NPCs")
+	}
+
+	// NPC duplicate name detection
+	npcNamesSeen := make(map[string]int, len(cfg.NPCs))
+
 	// NPCs
 	for i, npc := range cfg.NPCs {
 		prefix := fmt.Sprintf("npcs[%d]", i)
 		if npc.Name == "" {
 			errs = append(errs, fmt.Errorf("%s.name is required", prefix))
+		} else {
+			if prev, ok := npcNamesSeen[npc.Name]; ok {
+				errs = append(errs, fmt.Errorf("%s.name %q is a duplicate of npcs[%d]", prefix, npc.Name, prev))
+			}
+			npcNamesSeen[npc.Name] = i
 		}
 		if npc.Engine != "" && !npc.Engine.IsValid() {
 			errs = append(errs, fmt.Errorf("%s.engine %q is invalid; valid values: cascaded, s2s", prefix, npc.Engine))
@@ -70,6 +117,31 @@ func Validate(cfg *Config) error {
 		}
 		if npc.Voice.PitchShift < -10 || npc.Voice.PitchShift > 10 {
 			errs = append(errs, fmt.Errorf("%s.voice.pitch_shift %.2f is out of range [-10, 10]", prefix, npc.Voice.PitchShift))
+		}
+
+		// Engine ↔ provider cross-validation
+		engine := npc.Engine
+		if engine == EngineCascaded || engine == EngineSentenceCascade {
+			if cfg.Providers.LLM.Name == "" {
+				errs = append(errs, fmt.Errorf("%s: engine %q requires an LLM provider but providers.llm is not configured", prefix, engine))
+			}
+			if cfg.Providers.TTS.Name == "" {
+				errs = append(errs, fmt.Errorf("%s: engine %q requires a TTS provider but providers.tts is not configured", prefix, engine))
+			}
+		}
+		if engine == EngineS2S {
+			if cfg.Providers.S2S.Name == "" {
+				errs = append(errs, fmt.Errorf("%s: engine %q requires an S2S provider but providers.s2s is not configured", prefix, engine))
+			}
+		}
+
+		// Voice provider ↔ TTS provider cross-validation
+		if npc.Voice.Provider != "" && cfg.Providers.TTS.Name != "" && npc.Voice.Provider != cfg.Providers.TTS.Name {
+			slog.Warn("NPC voice provider does not match configured TTS provider",
+				"npc", npc.Name,
+				"voice_provider", npc.Voice.Provider,
+				"tts_provider", cfg.Providers.TTS.Name,
+			)
 		}
 	}
 
@@ -91,4 +163,26 @@ func Validate(cfg *Config) error {
 	}
 
 	return errors.Join(errs...)
+}
+
+// validateProviderName logs a warning if name is non-empty and not found in
+// the [ValidProviderNames] list for the given kind.
+func validateProviderName(kind, name string) {
+	if name == "" {
+		return
+	}
+	known, ok := ValidProviderNames[kind]
+	if !ok {
+		return
+	}
+	for _, k := range known {
+		if k == name {
+			return
+		}
+	}
+	slog.Warn("unknown provider name — may be a typo or third-party provider",
+		"kind", kind,
+		"name", name,
+		"known", known,
+	)
 }

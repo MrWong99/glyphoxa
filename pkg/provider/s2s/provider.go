@@ -113,6 +113,18 @@ type SessionHandle interface {
 	// text). The channel is closed when the session ends.
 	Transcripts() <-chan memory.TranscriptEntry
 
+	// OnError registers a handler that is invoked whenever the provider encounters
+	// a non-fatal error (e.g., unintelligible audio, rate limit warnings, transient
+	// network hiccups). Only one handler can be active at a time; calling OnError
+	// again replaces the previous handler. Passing nil clears the handler.
+	//
+	// Non-fatal errors do NOT close the session — the Audio and Transcripts channels
+	// remain open. Fatal errors still surface via [SessionHandle.Err] after the Audio
+	// channel closes.
+	//
+	// The handler is invoked on an internal goroutine and must not block.
+	OnError(handler func(error))
+
 	// OnToolCall registers a handler that is invoked synchronously whenever the
 	// model requests a tool call. Only one handler can be active at a time; calling
 	// OnToolCall again replaces the previous handler. Passing nil clears the handler.

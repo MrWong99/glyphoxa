@@ -128,6 +128,9 @@ type Session struct {
 	// toolCallHandler is the currently registered ToolCallHandler.
 	toolCallHandler s2s.ToolCallHandler
 
+	// errorHandler is the currently registered error handler.
+	errorHandler func(error)
+
 	// --- Configurable errors ---
 
 	// SendAudioErr, if non-nil, is returned by every SendAudio call.
@@ -173,6 +176,9 @@ type Session struct {
 
 	// OnToolCallSetCount is the number of times OnToolCall was called.
 	OnToolCallSetCount int
+
+	// OnErrorSetCount is the number of times OnError was called.
+	OnErrorSetCount int
 }
 
 // SendAudio records the call and returns SendAudioErr.
@@ -204,6 +210,25 @@ func (s *Session) Transcripts() <-chan memory.TranscriptEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.TranscriptsCh
+}
+
+// OnError stores the error handler and increments OnErrorSetCount.
+func (s *Session) OnError(handler func(error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.errorHandler = handler
+	s.OnErrorSetCount++
+}
+
+// SimulateError invokes the registered error handler if one exists. This is a
+// test helper that allows callers to simulate a non-fatal provider error.
+func (s *Session) SimulateError(err error) {
+	s.mu.Lock()
+	handler := s.errorHandler
+	s.mu.Unlock()
+	if handler != nil {
+		handler(err)
+	}
 }
 
 // OnToolCall stores the handler and increments OnToolCallSetCount.
@@ -277,6 +302,7 @@ func (s *Session) ResetCalls() {
 	s.InterruptCallCount = 0
 	s.CloseCallCount = 0
 	s.OnToolCallSetCount = 0
+	s.OnErrorSetCount = 0
 }
 
 // Ensure Session implements s2s.SessionHandle at compile time.

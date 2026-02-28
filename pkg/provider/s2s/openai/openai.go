@@ -170,6 +170,14 @@ type conversationPart struct {
 	Text string `json:"text,omitempty"`
 }
 
+// serverErrorDetail represents the nested error object in an OpenAI Realtime
+// error event: {"type":"error","error":{"type":"...","code":"...","message":"..."}}.
+type serverErrorDetail struct {
+	Type    string `json:"type"`
+	Code    string `json:"code,omitempty"`
+	Message string `json:"message"`
+}
+
 // ── Protocol message types (incoming) ─────────────────────────────────────────
 
 type serverEvent struct {
@@ -186,15 +194,19 @@ type serverEvent struct {
 	Name      string `json:"name,omitempty"`
 	Arguments string `json:"arguments,omitempty"`
 	CallID    string `json:"call_id,omitempty"`
+
+	// error event
+	Error *serverErrorDetail `json:"error,omitempty"`
 }
 
 // ── session ────────────────────────────────────────────────────────────────────
 
 type session struct {
-	conn        *websocket.Conn
-	audioCh     chan []byte
-	transcripts chan memory.TranscriptEntry
-	toolHandler s2s.ToolCallHandler
+	conn         *websocket.Conn
+	audioCh      chan []byte
+	transcripts  chan memory.TranscriptEntry
+	toolHandler  s2s.ToolCallHandler
+	errorHandler func(error)
 
 	mu     sync.Mutex
 	errVal error
@@ -322,7 +334,26 @@ func (s *session) handleServerEvent(evt *serverEvent) {
 
 	case "response.function_call_arguments.done":
 		s.handleFunctionCall(evt)
+
+	case "error":
+		s.handleErrorEvent(evt)
 	}
+}
+
+func (s *session) handleErrorEvent(evt *serverEvent) {
+	s.mu.Lock()
+	handler := s.errorHandler
+	s.mu.Unlock()
+
+	if handler == nil {
+		return
+	}
+
+	msg := "unknown error"
+	if evt.Error != nil && evt.Error.Message != "" {
+		msg = evt.Error.Message
+	}
+	handler(fmt.Errorf("openai: %s", msg))
 }
 
 func (s *session) handleFunctionCall(evt *serverEvent) {
@@ -410,6 +441,13 @@ func (s *session) Err() error {
 
 // Transcripts returns the channel on which transcript entries arrive.
 func (s *session) Transcripts() <-chan memory.TranscriptEntry { return s.transcripts }
+
+// OnError registers a callback for non-fatal error events from the provider.
+func (s *session) OnError(handler func(error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.errorHandler = handler
+}
 
 // OnToolCall registers a callback for tool invocations from the model.
 func (s *session) OnToolCall(handler s2s.ToolCallHandler) {

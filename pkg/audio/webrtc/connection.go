@@ -4,11 +4,41 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/MrWong99/glyphoxa/pkg/audio"
 )
 
 const outputChannelBuffer = 64
+
+// OutputWriter wraps a write-only audio channel with lifecycle awareness.
+// It safely drops frames written after the connection has been disconnected,
+// preventing panics from sends on closed channels.
+type OutputWriter struct {
+	ch           chan<- audio.AudioFrame
+	disconnected atomic.Bool
+}
+
+// Send writes a frame to the output. Returns false if the connection
+// is disconnected (frame was dropped).
+func (w *OutputWriter) Send(frame audio.AudioFrame) bool {
+	if w.disconnected.Load() {
+		return false
+	}
+	select {
+	case w.ch <- frame:
+		return true
+	default:
+		// Channel full — drop frame rather than block.
+		return false
+	}
+}
+
+// Close marks the writer as closed. Subsequent Send calls are no-ops.
+// The underlying channel is NOT closed (it is owned by the platform).
+func (w *OutputWriter) Close() {
+	w.disconnected.Store(true)
+}
 
 // peer holds the runtime state for a single connected WebRTC peer.
 type peer struct {
@@ -30,8 +60,9 @@ type Connection struct {
 
 	mu           sync.RWMutex
 	peers        map[string]*peer
-	inputStreams map[string]chan audio.AudioFrame
+	inputStreams  map[string]chan audio.AudioFrame
 	outputCh     chan audio.AudioFrame
+	outputWriter *OutputWriter
 	onChange     func(audio.Event)
 	disconnected bool
 
@@ -42,13 +73,15 @@ type Connection struct {
 
 func newConnection(channelID string, sampleRate int, stunServers []string) *Connection {
 	ctx, cancel := context.WithCancel(context.Background())
+	outputCh := make(chan audio.AudioFrame, outputChannelBuffer)
 	c := &Connection{
 		channelID:    channelID,
 		sampleRate:   sampleRate,
 		stunServers:  stunServers,
 		peers:        make(map[string]*peer),
 		inputStreams: make(map[string]chan audio.AudioFrame),
-		outputCh:     make(chan audio.AudioFrame, outputChannelBuffer),
+		outputCh:     outputCh,
+		outputWriter: &OutputWriter{ch: outputCh},
 		ctx:          ctx,
 		cancel:       cancel,
 		newTransport: func(_ string) PeerTransport {
@@ -80,6 +113,14 @@ func (c *Connection) OutputStream() chan<- audio.AudioFrame {
 	return c.outputCh
 }
 
+// OutputWriter returns an OutputWriter that provides safe, lifecycle-aware
+// writes to the output stream. Prefer this over OutputStream() for new code.
+// After Disconnect, calls to OutputWriter().Send() safely drop frames instead
+// of risking a send on a closed or abandoned channel.
+func (c *Connection) OutputWriter() *OutputWriter {
+	return c.outputWriter
+}
+
 // OnParticipantChange registers cb as the participant lifecycle callback.
 // Subsequent calls replace the previous registration.
 // The callback is invoked on an internal goroutine — callers must not block.
@@ -99,6 +140,9 @@ func (c *Connection) Disconnect() error {
 		return nil
 	}
 	c.disconnected = true
+
+	// Mark the output writer as disconnected so late writes are dropped safely.
+	c.outputWriter.Close()
 
 	// Cancel the context to stop forwardOutput and all readPeerInput goroutines.
 	c.cancel()

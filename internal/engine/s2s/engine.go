@@ -15,6 +15,7 @@ package s2s
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -145,6 +146,10 @@ func (e *Engine) ensureSessionLocked(ctx context.Context) error {
 	if e.toolHandler != nil {
 		sess.OnToolCall(e.toolHandler)
 	}
+
+	sess.OnError(func(err error) {
+		slog.Warn("s2s non-fatal error", "err", err)
+	})
 
 	e.session = sess
 

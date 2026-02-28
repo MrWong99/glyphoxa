@@ -230,6 +230,13 @@ type serverMessage struct {
 	ServerContent        *serverContent   `json:"serverContent,omitempty"`
 	ToolCall             *toolCallMsg     `json:"toolCall,omitempty"`
 	ToolCallCancellation *json.RawMessage `json:"toolCallCancellation,omitempty"`
+	Error                *geminiError     `json:"error,omitempty"`
+}
+
+type geminiError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Status  string `json:"status,omitempty"`
 }
 
 type serverContent struct {
@@ -261,10 +268,11 @@ type functionCall struct {
 // ── session ────────────────────────────────────────────────────────────────────
 
 type session struct {
-	conn        *websocket.Conn
-	audioCh     chan []byte
-	transcripts chan memory.TranscriptEntry
-	toolHandler s2s.ToolCallHandler
+	conn         *websocket.Conn
+	audioCh      chan []byte
+	transcripts  chan memory.TranscriptEntry
+	toolHandler  s2s.ToolCallHandler
+	errorHandler func(error)
 
 	mu     sync.Mutex
 	errVal error
@@ -351,12 +359,31 @@ func (s *session) receiveLoop() {
 }
 
 func (s *session) handleServerMessage(msg *serverMessage) {
+	if msg.Error != nil {
+		s.handleError(msg.Error)
+	}
 	if msg.ServerContent != nil {
 		s.handleServerContent(msg.ServerContent)
 	}
 	if msg.ToolCall != nil {
 		s.handleToolCall(msg.ToolCall)
 	}
+}
+
+func (s *session) handleError(ge *geminiError) {
+	s.mu.Lock()
+	handler := s.errorHandler
+	s.mu.Unlock()
+
+	if handler == nil {
+		return
+	}
+
+	msg := "unknown error"
+	if ge.Message != "" {
+		msg = ge.Message
+	}
+	handler(fmt.Errorf("gemini: %s", msg))
 }
 
 func (s *session) handleServerContent(sc *serverContent) {
@@ -532,6 +559,13 @@ func (s *session) Err() error {
 
 // Transcripts returns the channel on which transcript entries arrive.
 func (s *session) Transcripts() <-chan memory.TranscriptEntry { return s.transcripts }
+
+// OnError registers a callback for non-fatal error events from the provider.
+func (s *session) OnError(handler func(error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.errorHandler = handler
+}
 
 // OnToolCall registers a callback for tool invocations from the model.
 func (s *session) OnToolCall(handler s2s.ToolCallHandler) {

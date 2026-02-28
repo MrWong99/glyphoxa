@@ -77,6 +77,11 @@ type Connection interface {
 	// OutputStream returns the single write-only channel for mixed NPC output.
 	// Frames written here are mixed and sent to all channel participants.
 	// The channel is buffered; writes must not block indefinitely.
+	//
+	// Ownership: The returned channel is owned by the caller (writer). The platform
+	// does NOT close this channel on Disconnect — the caller is responsible for
+	// stopping writes and optionally closing the channel. Writing to the channel
+	// after Disconnect is called results in dropped frames (not a panic).
 	OutputStream() chan<- AudioFrame
 
 	// OnParticipantChange registers cb as the callback to invoke whenever a

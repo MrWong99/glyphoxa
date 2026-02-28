@@ -339,6 +339,26 @@ func TestOnToolCall_RegistersHandler(t *testing.T) {
 	}
 }
 
+// ─── TestOnError_WiredToSession ───────────────────────────────────────────────
+
+func TestOnError_WiredToSession(t *testing.T) {
+	t.Parallel()
+
+	sess := newSession()
+	p := &s2smock.Provider{Session: sess}
+	e := newTestEngine(p)
+	t.Cleanup(func() { _ = e.Close() })
+
+	// Open session — ensureSessionLocked should register OnError.
+	resp := mustProcess(t, e, nil)
+	go drainAudio(resp.Audio)
+
+	// The engine should have called OnError on the session.
+	if sess.OnErrorSetCount == 0 {
+		t.Fatal("OnError not wired to session (OnErrorSetCount == 0)")
+	}
+}
+
 // ─── TestTranscripts_ForwardsFromSession ──────────────────────────────────────
 
 func TestTranscripts_ForwardsFromSession(t *testing.T) {

@@ -490,6 +490,91 @@ func TestTranscripts_ChannelNotNil(t *testing.T) {
 	}
 }
 
+// ── TestOnError ─────────────────────────────────────────────────────────────────────
+
+func TestOnError_InvokesHandler(t *testing.T) {
+	t.Parallel()
+
+	srv := startOpenAIServer(t, func(conn *websocket.Conn, _ *http.Request) {
+		var raw map[string]any
+		readJSON(t, conn, &raw)
+
+		// Send an error event.
+		writeJSON(t, conn, map[string]any{
+			"type": "error",
+			"error": map[string]any{
+				"type":    "invalid_request_error",
+				"code":    "audio_unintelligible",
+				"message": "Could not understand audio.",
+			},
+		})
+
+		<-conn.CloseRead(context.Background()).Done()
+	})
+
+	p := openai.New("key", openai.WithBaseURL(wsURL(srv)))
+	handle, err := p.Connect(context.Background(), s2s.SessionConfig{})
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer handle.Close()
+
+	errCh := make(chan error, 1)
+	handle.OnError(func(e error) {
+		errCh <- e
+	})
+
+	select {
+	case gotErr := <-errCh:
+		if gotErr == nil {
+			t.Fatal("OnError handler called with nil error")
+		}
+		if !strings.Contains(gotErr.Error(), "Could not understand audio") {
+			t.Errorf("error = %q; want substring %q", gotErr, "Could not understand audio")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout waiting for OnError handler to be called")
+	}
+}
+
+func TestOnError_NilHandlerIgnoresError(t *testing.T) {
+	t.Parallel()
+
+	errorSent := make(chan struct{}, 1)
+
+	srv := startOpenAIServer(t, func(conn *websocket.Conn, _ *http.Request) {
+		var raw map[string]any
+		readJSON(t, conn, &raw)
+
+		writeJSON(t, conn, map[string]any{
+			"type": "error",
+			"error": map[string]any{
+				"type":    "server_error",
+				"message": "Transient failure",
+			},
+		})
+		close(errorSent)
+
+		time.Sleep(200 * time.Millisecond)
+		<-conn.CloseRead(context.Background()).Done()
+	})
+
+	p := openai.New("key", openai.WithBaseURL(wsURL(srv)))
+	handle, err := p.Connect(context.Background(), s2s.SessionConfig{})
+	if err != nil {
+		t.Fatalf("Connect: %v", err)
+	}
+	defer handle.Close()
+
+	// No handler registered — should not panic.
+	select {
+	case <-errorSent:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout")
+	}
+	time.Sleep(50 * time.Millisecond)
+}
+
 // ── TestOnToolCall ─────────────────────────────────────────────────────────────
 
 func TestOnToolCall_RoutesToolCallToHandler(t *testing.T) {

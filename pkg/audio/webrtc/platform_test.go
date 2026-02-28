@@ -352,6 +352,108 @@ func TestConnection_ConcurrentPeerOperations(t *testing.T) {
 	}
 }
 
+// ─── OutputWriter tests ────────────────────────────────────────────────────────────
+
+// TestOutputWriter_SendBeforeDisconnect verifies that OutputWriter.Send
+// successfully writes frames before the connection is disconnected.
+func TestOutputWriter_SendBeforeDisconnect(t *testing.T) {
+	t.Parallel()
+
+	conn := newTestConnection(t)
+	defer func() { _ = conn.Disconnect() }()
+
+	if _, err := conn.AddPeer("ow-user-1", "Writer"); err != nil {
+		t.Fatalf("AddPeer: %v", err)
+	}
+
+	conn.mu.RLock()
+	mt := conn.peers["ow-user-1"].transport.(*mockTransport)
+	conn.mu.RUnlock()
+
+	w := conn.OutputWriter()
+	frame := audio.AudioFrame{Data: []byte{0xAA, 0xBB}, SampleRate: 48000, Channels: 1}
+	if ok := w.Send(frame); !ok {
+		t.Fatal("Send returned false before disconnect")
+	}
+
+	// Frame should reach the mock transport via forwardOutput.
+	select {
+	case got := <-mt.audioOut:
+		if string(got.Data) != string(frame.Data) {
+			t.Errorf("output frame data: got %v, want %v", got.Data, frame.Data)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for frame in mock transport output")
+	}
+}
+
+// TestOutputWriter_SendAfterDisconnect verifies that OutputWriter.Send
+// safely drops frames after Disconnect without panicking.
+func TestOutputWriter_SendAfterDisconnect(t *testing.T) {
+	t.Parallel()
+
+	conn := newTestConnection(t)
+
+	w := conn.OutputWriter()
+
+	if err := conn.Disconnect(); err != nil {
+		t.Fatalf("Disconnect: %v", err)
+	}
+
+	// Must not panic.
+	frame := audio.AudioFrame{Data: []byte{0xFF}, SampleRate: 48000, Channels: 1}
+	if ok := w.Send(frame); ok {
+		t.Error("Send returned true after disconnect; want false (frame should be dropped)")
+	}
+}
+
+// TestOutputWriter_NotNil verifies that OutputWriter returns a non-nil value.
+func TestOutputWriter_NotNil(t *testing.T) {
+	t.Parallel()
+
+	conn := newTestConnection(t)
+	defer func() { _ = conn.Disconnect() }()
+
+	if conn.OutputWriter() == nil {
+		t.Fatal("OutputWriter() returned nil")
+	}
+}
+
+// TestOutputStream_StillWorksAfterOutputWriterAdded verifies backward compatibility:
+// OutputStream() continues to return a usable channel.
+func TestOutputStream_StillWorksAfterOutputWriterAdded(t *testing.T) {
+	t.Parallel()
+
+	conn := newTestConnection(t)
+	defer func() { _ = conn.Disconnect() }()
+
+	ch := conn.OutputStream()
+	if ch == nil {
+		t.Fatal("OutputStream() returned nil")
+	}
+
+	// Verify we can still write to it (basic smoke test).
+	if _, err := conn.AddPeer("ow-compat-user", "Compat"); err != nil {
+		t.Fatalf("AddPeer: %v", err)
+	}
+
+	conn.mu.RLock()
+	mt := conn.peers["ow-compat-user"].transport.(*mockTransport)
+	conn.mu.RUnlock()
+
+	frame := audio.AudioFrame{Data: []byte{0x42}, SampleRate: 48000, Channels: 1}
+	ch <- frame
+
+	select {
+	case got := <-mt.audioOut:
+		if string(got.Data) != string(frame.Data) {
+			t.Errorf("output frame data: got %v, want %v", got.Data, frame.Data)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for frame from OutputStream")
+	}
+}
+
 // ─── SignalingServer tests ────────────────────────────────────────────────────
 
 // TestSignalingServer_Handler exercises all three HTTP endpoints of the
