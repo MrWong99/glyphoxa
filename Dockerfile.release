@@ -1,0 +1,10 @@
+# Minimal Dockerfile for pre-built static binaries (used by release workflow).
+# The full multi-stage Dockerfile is used for main-branch builds.
+FROM gcr.io/distroless/static-debian12:nonroot
+
+ARG TARGETOS=linux
+ARG TARGETARCH
+
+COPY ${TARGETOS}/${TARGETARCH}/glyphoxa /usr/local/bin/glyphoxa
+
+ENTRYPOINT ["glyphoxa"]

@@ -27,7 +27,7 @@ builds:
           - CGO_LDFLAGS=-L/tmp/whisper/arm64/lib -lm
           - PKG_CONFIG_LIBDIR=/tmp/opus/arm64/lib/pkgconfig
     ldflags:
-      - -s -w
+      - -s -w -linkmode external -extldflags "-static"
 
 archives:
   - id: default
