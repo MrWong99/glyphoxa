@@ -2,7 +2,7 @@ package discord
 
 import (
 	"math"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 )
@@ -151,7 +151,7 @@ func (lb *latencyBuffer) percentiles() LatencyPercentiles {
 	} else {
 		copy(sorted, lb.data[:n])
 	}
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	slices.Sort(sorted)
 
 	return LatencyPercentiles{
 		P50: percentile(sorted, 0.50),
@@ -165,10 +165,7 @@ func percentile(sorted []time.Duration, p float64) time.Duration {
 	if len(sorted) == 0 {
 		return 0
 	}
-	idx := int(math.Ceil(p*float64(len(sorted)))) - 1
-	if idx < 0 {
-		idx = 0
-	}
+	idx := max(int(math.Ceil(p*float64(len(sorted))))-1, 0)
 	if idx >= len(sorted) {
 		idx = len(sorted) - 1
 	}

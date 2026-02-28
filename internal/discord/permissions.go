@@ -1,5 +1,7 @@
 package discord
 
+import "slices"
+
 import "github.com/bwmarrin/discordgo"
 
 // PermissionChecker validates that a Discord user has the DM role
@@ -23,10 +25,5 @@ func (p *PermissionChecker) IsDM(i *discordgo.InteractionCreate) bool {
 	if i.Member == nil {
 		return false
 	}
-	for _, role := range i.Member.Roles {
-		if role == p.dmRoleID {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(i.Member.Roles, p.dmRoleID)
 }

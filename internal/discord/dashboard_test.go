@@ -16,13 +16,13 @@ type stubSessionData struct {
 	memoryEntries int
 }
 
-func (s *stubSessionData) IsActive() bool        { return s.active }
-func (s *stubSessionData) SessionID() string      { return s.sessionID }
-func (s *stubSessionData) CampaignName() string   { return s.campaignName }
-func (s *stubSessionData) StartedAt() time.Time   { return s.startedAt }
-func (s *stubSessionData) NPCCount() int          { return s.npcCount }
-func (s *stubSessionData) MutedNPCCount() int     { return s.mutedCount }
-func (s *stubSessionData) MemoryEntries() int     { return s.memoryEntries }
+func (s *stubSessionData) IsActive() bool       { return s.active }
+func (s *stubSessionData) SessionID() string    { return s.sessionID }
+func (s *stubSessionData) CampaignName() string { return s.campaignName }
+func (s *stubSessionData) StartedAt() time.Time { return s.startedAt }
+func (s *stubSessionData) NPCCount() int        { return s.npcCount }
+func (s *stubSessionData) MutedNPCCount() int   { return s.mutedCount }
+func (s *stubSessionData) MemoryEntries() int   { return s.memoryEntries }
 
 func TestBuildEmbed(t *testing.T) {
 	t.Parallel()

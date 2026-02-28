@@ -56,7 +56,7 @@ func (ec *EntityCommands) handleAddModal(s *discordgo.Session, i *discordgo.Inte
 
 	var tags []string
 	if tagsRaw != "" {
-		for _, t := range strings.Split(tagsRaw, ",") {
+		for t := range strings.SplitSeq(tagsRaw, ",") {
 			t = strings.TrimSpace(t)
 			if t != "" {
 				tags = append(tags, t)

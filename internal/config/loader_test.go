@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -151,13 +152,7 @@ func TestValidProviderNames(t *testing.T) {
 		t.Fatal("ValidProviderNames[\"llm\"] should not be empty")
 	}
 	// Check that "openai" is in the LLM list.
-	found := false
-	for _, n := range llmNames {
-		if n == "openai" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(llmNames, "openai")
 	if !found {
 		t.Error("ValidProviderNames[\"llm\"] should contain \"openai\"")
 	}

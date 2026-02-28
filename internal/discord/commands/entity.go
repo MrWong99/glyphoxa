@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	entityAddModalID           = "entity_add_modal"
-	entityRemoveCancelID       = "entity_remove_cancel"
-	entityRemoveConfirmPrefix  = "entity_remove_confirm:"
-	maxImportSize              = 10 << 20 // 10 MB
+	entityAddModalID          = "entity_add_modal"
+	entityRemoveCancelID      = "entity_remove_cancel"
+	entityRemoveConfirmPrefix = "entity_remove_confirm:"
+	maxImportSize             = 10 << 20 // 10 MB
 )
 
 // EntityCommands holds the dependencies for /entity slash commands.

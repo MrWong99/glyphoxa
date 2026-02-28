@@ -171,8 +171,7 @@ func TestConsolidator_StartStop(t *testing.T) {
 		llm.Message{Role: "user", Content: "Hello"},
 	)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	c.Start(ctx)
 

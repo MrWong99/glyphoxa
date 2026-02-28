@@ -247,11 +247,9 @@ func TestConnection_ConcurrentDisconnect(t *testing.T) {
 	c := newTestConnection(t)
 	var wg sync.WaitGroup
 	for range 10 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			_ = c.Disconnect()
-		}()
+		})
 	}
 	wg.Wait()
 }

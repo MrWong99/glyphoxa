@@ -16,18 +16,18 @@ type AutocompleteFunc func(s *discordgo.Session, i *discordgo.InteractionCreate)
 
 // commandEntry stores a command definition along with its handler.
 type commandEntry struct {
-	command  *discordgo.ApplicationCommand
-	handler  HandlerFunc
+	command *discordgo.ApplicationCommand
+	handler HandlerFunc
 }
 
 // CommandRouter dispatches Discord interactions to registered handlers.
 type CommandRouter struct {
-	mu               sync.RWMutex
-	commands         map[string]commandEntry             // "command" or "command/subcommand" → entry
-	autocomplete     map[string]AutocompleteFunc          // "command" or "command/subcommand" → handler
-	components       map[string]HandlerFunc               // custom_id → handler (for buttons)
-	componentPrefix  map[string]HandlerFunc               // prefix → handler (for buttons with dynamic suffixes)
-	modals           map[string]HandlerFunc               // custom_id → handler (for modal submits)
+	mu              sync.RWMutex
+	commands        map[string]commandEntry     // "command" or "command/subcommand" → entry
+	autocomplete    map[string]AutocompleteFunc // "command" or "command/subcommand" → handler
+	components      map[string]HandlerFunc      // custom_id → handler (for buttons)
+	componentPrefix map[string]HandlerFunc      // prefix → handler (for buttons with dynamic suffixes)
+	modals          map[string]HandlerFunc      // custom_id → handler (for modal submits)
 }
 
 // NewCommandRouter creates an empty router.

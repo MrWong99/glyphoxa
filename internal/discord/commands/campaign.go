@@ -16,10 +16,10 @@ import (
 
 // CampaignCommands holds the dependencies for /campaign slash commands.
 type CampaignCommands struct {
-	perms     *discord.PermissionChecker
-	getStore  func() entity.Store
-	getCfg    func() *config.CampaignConfig
-	isActive  func() bool // returns true if a session is currently active
+	perms    *discord.PermissionChecker
+	getStore func() entity.Store
+	getCfg   func() *config.CampaignConfig
+	isActive func() bool // returns true if a session is currently active
 }
 
 // NewCampaignCommands creates a CampaignCommands handler.

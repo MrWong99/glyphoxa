@@ -32,7 +32,7 @@ type Connection struct {
 
 	inputsMu sync.RWMutex
 	inputs   map[string]chan audio.AudioFrame // keyed by SSRC string
-	ssrcUser map[uint32]string               // SSRC -> userID mapping
+	ssrcUser map[uint32]string                // SSRC -> userID mapping
 
 	output chan audio.AudioFrame
 

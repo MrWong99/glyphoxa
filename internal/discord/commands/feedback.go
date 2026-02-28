@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bwmarrin/discordgo"
 	"github.com/MrWong99/glyphoxa/internal/discord"
+	"github.com/bwmarrin/discordgo"
 )
 
 const (
@@ -23,20 +23,20 @@ type FeedbackStore interface {
 
 // Feedback holds a DM's post-session feedback ratings and comments.
 type Feedback struct {
-	SessionID     string
-	UserID        string
-	VoiceLatency  int    // 1-5
-	NPCPersonality int   // 1-5
-	MemoryAccuracy int   // 1-5
-	DMWorkflow     int   // 1-5
+	SessionID      string
+	UserID         string
+	VoiceLatency   int // 1-5
+	NPCPersonality int // 1-5
+	MemoryAccuracy int // 1-5
+	DMWorkflow     int // 1-5
 	Comments       string
 }
 
 // FeedbackCommands handles the /feedback slash command.
 type FeedbackCommands struct {
-	perms         *discord.PermissionChecker
-	store         FeedbackStore
-	getSessionID  func() string // returns current or last session ID
+	perms        *discord.PermissionChecker
+	store        FeedbackStore
+	getSessionID func() string // returns current or last session ID
 }
 
 // NewFeedbackCommands creates a FeedbackCommands handler.

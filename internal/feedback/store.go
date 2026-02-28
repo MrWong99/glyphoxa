@@ -21,14 +21,14 @@ var _ commands.FeedbackStore = (*FileStore)(nil)
 
 // Record is a single feedback entry written to the file store.
 type Record struct {
-	Timestamp      time.Time         `json:"timestamp"`
-	SessionID      string            `json:"session_id"`
-	UserID         string            `json:"user_id"`
-	VoiceLatency   int               `json:"voice_latency"`
-	NPCPersonality int               `json:"npc_personality"`
-	MemoryAccuracy int               `json:"memory_accuracy"`
-	DMWorkflow     int               `json:"dm_workflow"`
-	Comments       string            `json:"comments,omitempty"`
+	Timestamp      time.Time `json:"timestamp"`
+	SessionID      string    `json:"session_id"`
+	UserID         string    `json:"user_id"`
+	VoiceLatency   int       `json:"voice_latency"`
+	NPCPersonality int       `json:"npc_personality"`
+	MemoryAccuracy int       `json:"memory_accuracy"`
+	DMWorkflow     int       `json:"dm_workflow"`
+	Comments       string    `json:"comments,omitempty"`
 }
 
 // FileStore persists feedback as JSON lines in a local file.

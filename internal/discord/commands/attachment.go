@@ -101,7 +101,10 @@ func DownloadAttachment(ctx context.Context, attachment *discordgo.MessageAttach
 	}
 
 	return &DownloadedAttachment{
-		Body:     struct{ io.Reader; io.Closer }{io.LimitReader(resp.Body, maxImportSize+1), resp.Body},
+		Body: struct {
+			io.Reader
+			io.Closer
+		}{io.LimitReader(resp.Body, maxImportSize+1), resp.Body},
 		Filename: attachment.Filename,
 		Format:   DetectFormat(attachment.Filename),
 		Size:     attachment.Size,

@@ -72,15 +72,15 @@ const defaultAudioPriority = 1
 // tool wiring, and audio output. Concurrent calls to [liveAgent.HandleUtterance]
 // are serialised via an internal mutex to preserve conversational coherence.
 type liveAgent struct {
-	id         string
-	identity   NPCIdentity
-	eng        engine.VoiceEngine
-	assembler  *hotctx.Assembler
-	mcpHost    mcp.Host    // may be nil if no tools
-	mixer      audio.Mixer // may be nil if not using mixer
+	id          string
+	identity    NPCIdentity
+	eng         engine.VoiceEngine
+	assembler   *hotctx.Assembler
+	mcpHost     mcp.Host     // may be nil if no tools
+	mixer       audio.Mixer  // may be nil if not using mixer
 	ttsProvider tts.Provider // may be nil; required for SpeakText
-	sessionID  string
-	budgetTier mcp.BudgetTier
+	sessionID   string
+	budgetTier  mcp.BudgetTier
 
 	mu       sync.Mutex
 	scene    SceneContext

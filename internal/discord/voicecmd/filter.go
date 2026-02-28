@@ -185,4 +185,3 @@ func speakAs(ctx context.Context, orch *orchestrator.Orchestrator, name string, 
 	}
 	return fmt.Sprintf("%s speaks: %q", a.Name(), text), nil
 }
-

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -251,12 +252,13 @@ func formatLatencyField(snap Snapshot) string {
 	if len(lines) == 0 {
 		return ""
 	}
-	result := "```\n"
+	var result strings.Builder
+	result.WriteString("```\n")
 	for _, line := range lines {
-		result += line + "\n"
+		result.WriteString(line + "\n")
 	}
-	result += "```"
-	return result
+	result.WriteString("```")
+	return result.String()
 }
 
 // formatMs formats a duration as milliseconds with one decimal place.
