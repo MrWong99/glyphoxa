@@ -7,12 +7,16 @@
 #   Default (glyphoxa + postgres):
 #     docker compose up
 #
-#   Local LLM stack (adds ollama, whisper, coqui-tts):
+#   Local LLM stack (adds ollama, coqui-tts):
 #     docker compose --profile local up
 #
 #   Local stack with local config (no cloud API keys required):
 #     cp config.local.yaml config.yaml
 #     docker compose --profile local up
+#
+# Whisper.cpp is bundled directly into the Glyphoxa binary — no separate
+# container needed. Model files are downloaded on first run by the
+# whisper-model-download init service and stored in the whisper_models volume.
 #
 # See README.md for full setup instructions.
 # =============================================================================
@@ -41,7 +45,32 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
+  # Whisper model download (runs once)
+  # Downloads the ggml model file if not already present.
+  # ---------------------------------------------------------------------------
+  whisper-model-download:
+    image: curlimages/curl:latest
+    profiles:
+      - local
+    volumes:
+      - whisper_models:/models
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        MODEL_FILE="/models/ggml-base.en.bin"
+        if [ -f "$MODEL_FILE" ]; then
+          echo "Model already downloaded: $MODEL_FILE"
+          exit 0
+        fi
+        echo "Downloading whisper model base.en..."
+        curl -L -o "$MODEL_FILE" \
+          "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
+        echo "Model downloaded: $(ls -lh $MODEL_FILE)"
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
   # Glyphoxa application server
+  # Whisper.cpp is built into the binary — pass the model path via config.
   # ---------------------------------------------------------------------------
   glyphoxa:
     build:
@@ -51,6 +80,7 @@ services:
       - "8080:8080"
     volumes:
       - ./config.yaml:/etc/glyphoxa/config.yaml:ro
+      - whisper_models:/models:ro
     command: ["-config", "/etc/glyphoxa/config.yaml"]
     depends_on:
       postgres:
@@ -99,27 +129,6 @@ services:
     restart: "no"
 
   # ---------------------------------------------------------------------------
-  # Whisper.cpp — local speech-to-text server
-  # Model (ggml-base.en.bin) is included in the image.
-  # For GPU: swap image to ghcr.io/ggml-org/whisper.cpp:main-cuda
-  # ---------------------------------------------------------------------------
-  whisper:
-    image: ghcr.io/ggml-org/whisper.cpp:main
-    ports:
-      - "9000:8080"
-    profiles:
-      - local
-    entrypoint: ["/app/build/bin/whisper-server"]
-    command: ["--host", "0.0.0.0", "--port", "8080", "--model", "/app/models/ggml-base.en.bin", "--convert"]
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    restart: unless-stopped
-
-  # ---------------------------------------------------------------------------
   # Coqui TTS — local text-to-speech server
   # Uses VITS model (fast, lightweight). For XTTS v2 (multilingual, higher
   # quality, ~2GB download), change to:
@@ -148,3 +157,4 @@ volumes:
   pgdata:
   ollama_data:
   tts_models:
+  whisper_models:

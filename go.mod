@@ -5,6 +5,7 @@ go 1.26
 require (
 	github.com/antzucaro/matchr v0.0.0-20221106193745-7bed6ef61ef9
 	github.com/coder/websocket v1.8.14
+	github.com/ggerganov/whisper.cpp/bindings/go v0.0.0-20260227185758-9453b4b9be9b
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/modelcontextprotocol/go-sdk v1.3.1
 	github.com/mozilla-ai/any-llm-go v0.8.0

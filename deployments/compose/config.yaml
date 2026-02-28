@@ -1,6 +1,8 @@
-# Glyphoxa — Docker Compose configuration (local stack)
-# Use with: docker compose --profile local up
-# No cloud API keys required.
+# Glyphoxa — Docker Compose configuration
+# For the local stack: cp config.local.yaml config.yaml
+#
+# Whisper.cpp runs natively inside Glyphoxa (no separate container).
+# Mount model files to /models/ via the whisper_models volume.
 
 server:
   listen_addr: ":8080"
@@ -13,9 +15,8 @@ providers:
     model: llama3.2
 
   stt:
-    name: whisper
-    base_url: "http://whisper:8080"
-    model: base.en
+    name: whisper-native
+    model: /models/ggml-base.en.bin
     options:
       language: en
 

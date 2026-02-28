@@ -112,7 +112,7 @@ func run() int {
 // ship with Glyphoxa. Used for startup logging.
 var builtinProviders = map[string][]string{
 	"llm":        {"openai", "anthropic", "ollama", "gemini", "deepseek", "mistral", "groq", "llamacpp", "llamafile"},
-	"stt":        {"deepgram", "whisper"},
+	"stt":        {"deepgram", "whisper", "whisper-native"},
 	"tts":        {"elevenlabs", "coqui"},
 	"s2s":        {"openai-realtime", "gemini-live"},
 	"embeddings": {"openai", "ollama"},
@@ -180,6 +180,18 @@ func registerBuiltinProviders(reg *config.Registry) {
 			opts = append(opts, whisper.WithLanguage(lang))
 		}
 		return whisper.New(entry.BaseURL, opts...)
+	})
+
+	reg.RegisterSTT("whisper-native", func(entry config.ProviderEntry) (stt.Provider, error) {
+		modelPath := entry.Model
+		if modelPath == "" {
+			modelPath = optString(entry.Options, "model_path")
+		}
+		var opts []whisper.NativeOption
+		if lang := optString(entry.Options, "language"); lang != "" {
+			opts = append(opts, whisper.WithNativeLanguage(lang))
+		}
+		return whisper.NewNative(modelPath, opts...)
 	})
 
 	// ── TTS ───────────────────────────────────────────────────────────────────
