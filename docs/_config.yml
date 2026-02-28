@@ -1,0 +1,30 @@
+remote_theme: just-the-docs/just-the-docs
+
+title: Glyphoxa
+description: Real-time voice AI framework for TTRPG NPCs
+
+color_scheme: dark
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+heading_anchors: true
+
+search_enabled: true
+
+aux_links:
+  GitHub: https://github.com/MrWong99/glyphoxa
+
+gh_edit_link: true
+gh_edit_link_text: Edit this page on GitHub
+gh_edit_repository: https://github.com/MrWong99/glyphoxa
+gh_edit_source: docs
+gh_edit_view_mode: tree
+
+titles_from_headings:
+  enabled: true
+  strip_title: true

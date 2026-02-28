@@ -1,3 +1,8 @@
+---
+parent: Design Documents
+nav_order: 1
+---
+
 > *This document is derived from the Glyphoxa Design Document v0.2*
 
 # System Architecture

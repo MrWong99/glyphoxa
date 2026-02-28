@@ -1,3 +1,8 @@
+---
+parent: Design Documents
+nav_order: 10
+---
+
 # Knowledge Graph (L3)
 
 The knowledge graph is Glyphoxa's structured memory layer. It stores entities (NPCs, locations, items, factions) and typed relationships between them, forming the backbone of NPC identity, scene context, and cross-session continuity.

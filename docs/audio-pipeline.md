@@ -1,3 +1,7 @@
+---
+nav_order: 8
+---
+
 # :studio_microphone: Audio Pipeline
 
 End-to-end documentation for the Glyphoxa audio pipeline -- from player microphone to NPC voice output.

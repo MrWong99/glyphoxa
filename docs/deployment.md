@@ -1,3 +1,7 @@
+---
+nav_order: 10
+---
+
 # 🚀 Deployment & Production Setup
 
 Guide for deploying Glyphoxa in production. Covers Docker Compose, binary releases, building from source, database setup, TLS, and operational considerations.
@@ -57,7 +61,7 @@ docker compose up -d
 
 Profiles can be combined: `docker compose --profile local --profile alpha up` starts the full stack with monitoring.
 
-For complete setup details -- GPU acceleration, model selection, endpoints, and troubleshooting -- see [`deployments/compose/README.md`](../deployments/compose/README.md).
+For complete setup details -- GPU acceleration, model selection, endpoints, and troubleshooting -- see [`deployments/compose/README.md`](https://github.com/MrWong99/glyphoxa/blob/main/deployments/compose/README.md).
 
 ---
 
@@ -488,4 +492,4 @@ glyphoxa:
 - [configuration.md](configuration.md) -- full configuration reference
 - [observability.md](observability.md) -- metrics, tracing, and alerting
 - [troubleshooting.md](troubleshooting.md) -- common issues and solutions
-- [deployments/compose/README.md](../deployments/compose/README.md) -- Docker Compose setup details
+- [deployments/compose/README.md](https://github.com/MrWong99/glyphoxa/blob/main/deployments/compose/README.md) -- Docker Compose setup details

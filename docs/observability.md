@@ -1,3 +1,7 @@
+---
+nav_order: 11
+---
+
 # 🔭 Observability
 
 Monitoring, metrics, and tracing for Glyphoxa in production and development.

@@ -1,3 +1,7 @@
+---
+nav_order: 5
+---
+
 # 🎭 NPC Agents, Entities & Campaigns
 
 NPC agents are the core of the Glyphoxa experience. Each NPC is an autonomous AI character with its own personality, voice, knowledge, and behaviour rules. During a live TTRPG session, the orchestrator listens for player speech, routes it to the appropriate NPC, and streams a voiced response back to the voice channel -- all in real time.

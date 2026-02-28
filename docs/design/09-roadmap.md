@@ -1,3 +1,8 @@
+---
+parent: Design Documents
+nav_order: 9
+---
+
 # Roadmap
 
 Glyphoxa is in early alpha. This roadmap prioritizes **interchangeable components**, **clean API boundaries**, and **usable interfaces** over feature completeness. Every phase starts with interface design and ends with at least two concrete implementations to prove the abstraction holds.

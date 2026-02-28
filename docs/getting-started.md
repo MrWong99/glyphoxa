@@ -1,3 +1,7 @@
+---
+nav_order: 1
+---
+
 # 🚀 Getting Started
 
 Developer setup guide for building, running, and contributing to Glyphoxa.
@@ -249,7 +253,7 @@ docker compose --profile local up -d
 
 The local profile starts PostgreSQL with pgvector, Ollama (llama3.2 + nomic-embed-text), Whisper.cpp, and Coqui TTS automatically.
 
-For GPU acceleration, service configuration, model selection, and troubleshooting, see the full guide at [`deployments/compose/README.md`](../deployments/compose/README.md).
+For GPU acceleration, service configuration, model selection, and troubleshooting, see the full guide at [`deployments/compose/README.md`](https://github.com/MrWong99/glyphoxa/blob/main/deployments/compose/README.md).
 
 ---
 
@@ -351,4 +355,4 @@ If you configured a `dm_role_id`, ensure your Discord user has that role to acce
 - [Configuration](configuration.md) -- full configuration reference
 - [Deployment](deployment.md) -- production deployment guide
 - [Testing](testing.md) -- testing strategy and conventions
-- [Contributing](../CONTRIBUTING.md) -- code style, workflow, and PR guidelines
+- [Contributing](https://github.com/MrWong99/glyphoxa/blob/main/CONTRIBUTING.md) -- code style, workflow, and PR guidelines

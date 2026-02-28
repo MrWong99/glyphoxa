@@ -1,3 +1,7 @@
+---
+nav_order: 9
+---
+
 # Discord Command Reference
 
 Glyphoxa provides two types of commands for controlling NPC agents during a live TTRPG session:

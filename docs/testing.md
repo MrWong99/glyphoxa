@@ -1,3 +1,7 @@
+---
+nav_order: 12
+---
+
 # :test_tube: Testing Guide
 
 This guide covers everything you need to know about writing and running tests
@@ -691,4 +695,4 @@ func TestWatcher_DetectsChange(t *testing.T) {
 
 - [Getting Started](getting-started.md) — prerequisites, build, and first run
 - [Providers](design/02-providers.md) — LLM, STT, TTS, Audio provider interfaces
-- [Contributing](../CONTRIBUTING.md) — development workflow, code style, PR process
+- [Contributing](https://github.com/MrWong99/glyphoxa/blob/main/CONTRIBUTING.md) — development workflow, code style, PR process

@@ -1,3 +1,7 @@
+---
+nav_order: 0
+---
+
 # Glyphoxa Documentation
 
 Welcome to the Glyphoxa documentation. These guides cover how to set up, configure, extend, and operate Glyphoxa — a real-time voice AI framework for TTRPG NPCs.
@@ -71,8 +75,8 @@ These documents explain the *why* behind each subsystem — design decisions, ra
 
 ## Other Resources
 
-- [README](../README.md) — Project overview and quick start
-- [CONTRIBUTING](../CONTRIBUTING.md) — Development workflow and code style
-- [SECURITY](../SECURITY.md) — Vulnerability reporting
-- [Docker Compose Deployment](../deployments/compose/README.md) — Detailed Docker Compose guide
-- [Example Configuration](../configs/example.yaml) — Annotated example config file
+- [README](https://github.com/MrWong99/glyphoxa/blob/main/README.md) — Project overview and quick start
+- [CONTRIBUTING](https://github.com/MrWong99/glyphoxa/blob/main/CONTRIBUTING.md) — Development workflow and code style
+- [SECURITY](https://github.com/MrWong99/glyphoxa/blob/main/SECURITY.md) — Vulnerability reporting
+- [Docker Compose Deployment](https://github.com/MrWong99/glyphoxa/blob/main/deployments/compose/README.md) — Detailed Docker Compose guide
+- [Example Configuration](https://github.com/MrWong99/glyphoxa/blob/main/configs/example.yaml) — Annotated example config file

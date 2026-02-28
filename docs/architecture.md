@@ -1,3 +1,7 @@
+---
+nav_order: 2
+---
+
 # 🏗️ Architecture Overview
 
 ## 🎯 System Overview
@@ -309,4 +313,4 @@ The full design is captured in a series of detailed documents. This architecture
 - [design/00-overview.md](design/00-overview.md) — Vision and product principles
 - [design/01-architecture.md](design/01-architecture.md) — Detailed system architecture
 - [design/07-technology.md](design/07-technology.md) — Technology decisions and dependency stack
-- [CONTRIBUTING.md](../CONTRIBUTING.md) — Development setup, code style, and workflow
+- [CONTRIBUTING.md](https://github.com/MrWong99/glyphoxa/blob/main/CONTRIBUTING.md) — Development setup, code style, and workflow

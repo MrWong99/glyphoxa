@@ -1,3 +1,7 @@
+---
+nav_order: 7
+---
+
 # :wrench: MCP Tools
 
 ## :globe_with_meridians: Overview

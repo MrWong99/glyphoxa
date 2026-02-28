@@ -1,3 +1,7 @@
+---
+nav_order: 3
+---
+
 # :gear: Configuration Reference
 
 Glyphoxa is configured through a single YAML file. This document is the
@@ -571,7 +575,7 @@ npcs:
 ## :page_facing_up: Full Example
 
 A fully annotated example configuration is maintained at
-[`configs/example.yaml`](../configs/example.yaml). Copy it, rename it to
+[`configs/example.yaml`](https://github.com/MrWong99/glyphoxa/blob/main/configs/example.yaml). Copy it, rename it to
 `config.yaml`, and fill in your API keys to get started.
 
 ---
@@ -583,5 +587,5 @@ A fully annotated example configuration is maintained at
   capabilities and trade-offs
 - [`docs/deployment.md`](deployment.md) -- Production deployment patterns
   (Docker, systemd, Kubernetes)
-- [`configs/example.yaml`](../configs/example.yaml) -- Annotated example
+- [`configs/example.yaml`](https://github.com/MrWong99/glyphoxa/blob/main/configs/example.yaml) -- Annotated example
   configuration file

@@ -1,3 +1,7 @@
+---
+nav_order: 13
+---
+
 # Troubleshooting
 
 Common issues and their fixes for the Glyphoxa voice AI framework.

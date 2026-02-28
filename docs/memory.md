@@ -1,3 +1,7 @@
+---
+nav_order: 6
+---
+
 # :brain: Memory System
 
 Glyphoxa uses a **3-layer hybrid memory architecture** backed by a single PostgreSQL instance. The design ensures NPCs maintain identity, recall past conversations, and build persistent world knowledge across sessions -- all while meeting the sub-150ms latency budget for real-time voice interaction.

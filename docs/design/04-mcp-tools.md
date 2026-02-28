@@ -1,3 +1,8 @@
+---
+parent: Design Documents
+nav_order: 4
+---
+
 > *This document is derived from the Glyphoxa Design Document v0.2*
 
 # MCP Tool Integration
