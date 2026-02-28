@@ -10,7 +10,7 @@ Glyphoxa is in early alpha. This roadmap prioritizes **interchangeable component
 4. **Configuration-driven wiring.** Provider selection, NPC definitions, tool registration, and budget tiers are all declarative config (YAML). The application reads config and wires together the right implementations at startup.
 5. **Test at the boundary.** Integration tests run against the interface, not the implementation. A test suite for `LLMProvider` must pass identically for OpenAI, Anthropic, Gemini, and Ollama.
 
-## Phase 1: Core Interfaces and Project Scaffold
+## Phase 1: Core Interfaces and Project Scaffold ✅
 
 **Goal:** Establish the package structure, define all primary Go interfaces, and prove end-to-end audio flow with one provider per slot.
 
@@ -82,7 +82,7 @@ Build one concrete provider per interface to prove the pipeline works end-to-end
 - Build a provider registry that maps config strings to constructor functions
 - Wire everything in `cmd/glyphoxa/` — config load → provider instantiation → engine assembly → run
 
-## Phase 2: Provider Breadth and Memory Foundation
+## Phase 2: Provider Breadth and Memory Foundation ✅
 
 **Goal:** Prove interchangeability by adding a second provider for each slot. Build the memory subsystem with clean separation between layers.
 
@@ -126,7 +126,7 @@ Implement the multi-stage correction pipeline as a composable chain:
 
 Each stage is independently testable and skippable via config. The pipeline reads the entity list from the `KnowledgeGraph` interface — it does not directly access the database.
 
-## Phase 3: MCP Tools and Budget Enforcement
+## Phase 3: MCP Tools and Budget Enforcement ✅
 
 **Goal:** Build the tool execution layer with performance budgets that enforce latency guarantees by construction.
 
@@ -173,7 +173,7 @@ Wire MCP tools into S2S sessions:
 - Execute tools through the same `ToolCallHandler` as cascaded
 - Respect budget tiers — only declare tier-appropriate tools
 
-## Phase 4: NPC Agents and Orchestration
+## Phase 4: NPC Agents and Orchestration ✅
 
 **Goal:** Build the agent layer that brings NPCs to life with distinct personalities, memories, and voice profiles.
 
@@ -220,7 +220,7 @@ Wire keyword extraction on STT partials to trigger parallel cold-layer queries:
 - Temporal reference detection ("last time", "do you remember")
 - Results injected into prompt alongside hot context
 
-## Phase 5: S2S Engines and Alpha Testing
+## Phase 5: S2S Engines, Entity Management, and Platform Breadth ✅
 
 **Goal:** Complete the `S2SEngine` implementations and validate the full system with real play groups.
 
@@ -269,16 +269,124 @@ Add WebRTC support via Pion to validate the `AudioPlatform` interface:
 - Same pipeline, different transport — no changes above the audio layer
 - If the abstraction holds cleanly, the interface is correct
 
+## Phase 6: Production Hardening and Observability
+
+**Goal:** Make Glyphoxa reliable enough for multi-hour sessions with real play groups. Instrument everything, harden failure modes, and establish operational baselines.
+
+**Status:** Next up.
+
+### Structured Observability
+
+- **OpenTelemetry integration:** Traces for the full voice pipeline (VAD → STT → LLM → TTS → playback) with span-per-stage latency
+- **Prometheus metrics:** Endpoint exposing p50/p95/p99 latency per stage, active NPC count, memory query duration, tool execution times, error rates by provider
+- **Structured logging:** Replace ad-hoc `log` calls with `slog` (structured, leveled). Correlation IDs linking a single utterance through the entire pipeline
+- **Health endpoint:** `/healthz` and `/readyz` for container orchestration. Include provider connectivity checks
+
+### Graceful Degradation
+
+- **Provider failover:** If an STT/TTS/LLM provider returns errors or exceeds latency hard limits, automatically fall back to a configured secondary (e.g., ElevenLabs → Coqui, Deepgram → whisper.cpp)
+- **Circuit breakers:** Per-provider circuit breaker (closed → open → half-open). Prevent cascading failures when a single external API goes down
+- **S2S → cascaded fallback:** If an S2S session fails mid-conversation, seamlessly restart the NPC on cascaded engine without losing context
+- **Memory layer isolation:** L1/L2/L3 failures should degrade gracefully (NPC continues without memory rather than crashing)
+
+### Session Lifecycle
+
+- **Context window management:** Automatic summarization when approaching provider context limits. For S2S sessions, trigger summary + re-injection before the window fills
+- **Long-session support:** 4+ hour sessions need periodic memory consolidation — flush hot context to L1, re-summarize, prune stale entries
+- **Reconnection:** If the audio platform disconnects (Discord voice timeout, WebRTC ICE failure), auto-reconnect and resume NPC state
+
+### Configuration Validation
+
+- **Startup validation:** Fail fast with clear error messages if config references unknown providers, missing credentials, or invalid NPC definitions
+- **Config hot-reload:** Watch config file for changes and apply non-destructive updates (NPC personality, tool tiers, voice settings) without restarting the session
+
+### Resolve Open Design Items
+
+Address the two items from [to-be-discussed.md](to-be-discussed.md):
+- **#6 — OpenAI Realtime error events:** Implement `OnError(func(error))` callback on `s2s.SessionHandle` (recommended Option B)
+- **#7 — WebRTC `outputCh` ownership:** Update interface docs to clarify write-only channels are caller-owned (Option C), plan `Send(frame)` + `Close()` struct for v1 (Option D)
+
+## Phase 7: DM Experience and Closed Alpha
+
+**Goal:** Build the DM-facing control surface and run real play sessions to validate the product.
+
+### Discord Bot Interface
+
+- **Slash commands:** `/npc list`, `/npc mute <name>`, `/npc unmute <name>`, `/npc speak <name> <text>` (puppet mode), `/session start`, `/session stop`, `/session recap`
+- **Entity management:** `/entity add`, `/entity list`, `/entity remove`, `/entity import <file>` (YAML or VTT JSON)
+- **Campaign management:** `/campaign load <file>`, `/campaign info`, `/campaign switch`
+- **Session dashboard:** Embed showing active NPCs, latency stats, memory usage, and session duration
+
+### Voice Commands
+
+- DM voice shortcuts: "Grimjaw, be quiet" → mute, "Everyone, stop" → mute all, "Grimjaw, say..." → puppet
+- Keyword detection on STT partials with low-latency response
+
+### Companion Web UI (Stretch)
+
+- Real-time session view: active NPCs, who's speaking, transcript, latency gauges
+- NPC editor: personality, voice preview, knowledge scope, tool permissions
+- Campaign/entity browser with relationship graph visualization
+- This is a stretch goal — Discord-first for alpha
+
+### Closed Alpha Program
+
+- Recruit 3–5 DMs for real session testing (2–4 hour sessions, multiple game systems)
+- Focus feedback on:
+  - Voice latency and naturalness
+  - NPC personality consistency across long sessions
+  - Memory accuracy ("does the NPC remember correctly?")
+  - DM workflow ("is the control interface usable mid-session?")
+  - Provider switching reliability
+- Structured feedback forms after each session
+- Telemetry dashboards for latency distribution, error rates, provider usage
+
+## Phase 8: Polish, Performance, and Public Beta
+
+**Goal:** Optimize based on alpha feedback, expand platform support, and prepare for public release.
+
+### Performance Optimization
+
+- **Latency profiling:** Identify and eliminate bottlenecks from alpha telemetry. Target consistent sub-1.2s mouth-to-ear
+- **Connection pooling:** Reuse provider connections across NPC turns where possible (especially STT/TTS WebSocket sessions)
+- **Speculative pre-fetch tuning:** Measure hit rate of keyword-based pre-fetch from alpha data. Tune thresholds to minimize wasted queries
+- **Memory query optimization:** Index tuning on PostgreSQL (GIN for FTS, HNSW for pgvector) based on real query patterns
+
+### Multi-Platform Audio
+
+- **WebRTC production-ready:** Browser-based voice sessions without Discord dependency
+- **Platform abstraction validation:** Run identical NPC sessions on Discord and WebRTC to confirm the `AudioPlatform` interface holds
+- **Additional platforms:** Evaluate Mumble, TeamSpeak, or native desktop audio as community-requested
+
+### Game System Expansion
+
+- **D&D 5e SRD:** Pre-indexed and bundled (OGL/CC)
+- **Pathfinder 2e:** Pre-indexed (ORC license)
+- **User-uploaded rulebooks:** PDF/text ingestion into the rules-lookup tool with per-campaign scoping
+- **System-agnostic mode:** Dice roller and memory without system-specific rules
+
+### Deployment and Distribution
+
+- **Container images:** Multi-arch Docker images (amd64, arm64) published to GHCR
+- **Helm chart:** Kubernetes deployment with PostgreSQL, optional GPU node for local providers
+- **Single-binary self-host:** `glyphoxa serve` with embedded migrations and SQLite fallback for memory (no PostgreSQL required for small deployments)
+- **Managed cloud offering:** Evaluate feasibility based on alpha usage patterns and cost data
+
+### Documentation
+
+- **User guide:** Getting started, configuration reference, NPC authoring guide
+- **DM handbook:** Best practices for NPC design, session management, memory tuning
+- **Provider comparison:** Latency/cost/quality matrix for all supported providers
+- **API reference:** Generated godoc + OpenAPI spec for any HTTP endpoints
+
 ## Open Items
 
 These remain unresolved and will be addressed through prototyping and alpha feedback:
 
-- **Pricing model:** $5–15/month range, hybrid subscription + overage. Needs real usage data.
-- **Self-hosted vs. cloud:** Go's single-binary deployment makes both feasible. Open-source core + managed cloud offering is likely.
-- **DM control interface depth:** Voice commands, slash commands, web dashboard, or all three.
-- **Game system licensing:** D&D 5e SRD (free), Pathfinder 2e (ORC). User-uploaded rulebooks vs. pre-indexed.
-- **Voice consistency across engine switches:** S2S ↔ cascaded voice mismatch within a single NPC session.
-- **S2S context limits for long sessions:** Summarization strategy for 4+ hour sessions.
+- **Pricing model:** $5–15/month range, hybrid subscription + overage. Needs real usage data from alpha
+- **Self-hosted vs. cloud:** Go's single-binary deployment makes both feasible. Open-source core + managed cloud offering is likely. Alpha will inform the split
+- **Voice consistency across engine switches:** S2S ↔ cascaded voice mismatch within a single NPC session. May require voice-cloning or accepting the tradeoff
+- **Game system licensing:** D&D 5e SRD (free), Pathfinder 2e (ORC). User-uploaded rulebooks need careful scoping
 
 ---
 
