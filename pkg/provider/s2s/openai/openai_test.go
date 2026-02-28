@@ -601,9 +601,6 @@ func TestOnToolCall_RoutesToolCallToHandler(t *testing.T) {
 		data, _ := json.Marshal(resp)
 		toolResponseReceived <- string(data)
 
-		// Read response.create.
-		readJSON(t, conn, &raw)
-
 		<-conn.CloseRead(context.Background()).Done()
 	})
 

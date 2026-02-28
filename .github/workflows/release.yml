@@ -22,10 +22,49 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            cmake g++ gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Build whisper.cpp (amd64)
+        run: |
+          git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git /tmp/whisper-src
+          cd /tmp/whisper-src
+          cmake -B build-amd64 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DWHISPER_BUILD_EXAMPLES=OFF \
+            -DWHISPER_BUILD_TESTS=OFF \
+            -DWHISPER_BUILD_SERVER=OFF \
+            -DGGML_NATIVE=OFF
+          cmake --build build-amd64 --config Release -j$(nproc)
+          mkdir -p /tmp/whisper/include /tmp/whisper/amd64/lib
+          cp include/whisper.h /tmp/whisper/include/
+          cp -r ggml/include/* /tmp/whisper/include/ 2>/dev/null || true
+          find build-amd64 -name '*.a' -exec cp {} /tmp/whisper/amd64/lib/ \;
+
+      - name: Build whisper.cpp (arm64)
+        run: |
+          cd /tmp/whisper-src
+          cmake -B build-arm64 \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DWHISPER_BUILD_EXAMPLES=OFF \
+            -DWHISPER_BUILD_TESTS=OFF \
+            -DWHISPER_BUILD_SERVER=OFF \
+            -DGGML_NATIVE=OFF
+          cmake --build build-arm64 --config Release -j$(nproc)
+          mkdir -p /tmp/whisper/arm64/lib
+          find build-arm64 -name '*.a' -exec cp {} /tmp/whisper/arm64/lib/ \;
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
-          distribution: goreleaser-cross
           version: latest
           args: release --clean
         env:
