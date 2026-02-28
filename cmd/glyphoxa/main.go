@@ -16,6 +16,7 @@ import (
 
 	"github.com/MrWong99/glyphoxa/internal/app"
 	"github.com/MrWong99/glyphoxa/internal/config"
+	discordbot "github.com/MrWong99/glyphoxa/internal/discord"
 	"github.com/MrWong99/glyphoxa/pkg/provider/embeddings"
 	ollamaembed "github.com/MrWong99/glyphoxa/pkg/provider/embeddings/ollama"
 	oaembed "github.com/MrWong99/glyphoxa/pkg/provider/embeddings/openai"
@@ -73,17 +74,45 @@ func run() int {
 		return 1
 	}
 
-	// ── Startup summary ───────────────────────────────────────────────────────
-	printStartupSummary(cfg)
-
-	// ── Application wiring ────────────────────────────────────────────────────
+	// ── Signal context ────────────────────────────────────────────────────────
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// ── Discord bot (optional) ────────────────────────────────────────────────
+	var bot *discordbot.Bot
+	if cfg.Discord.Token != "" {
+		botCfg := discordbot.Config{
+			Token:    cfg.Discord.Token,
+			GuildID:  cfg.Discord.GuildID,
+			DMRoleID: cfg.Discord.DMRoleID,
+		}
+
+		bot, err = discordbot.New(ctx, botCfg)
+		if err != nil {
+			slog.Error("failed to create Discord bot", "err", err)
+			return 1
+		}
+		// Use the bot's audio platform instead of the provider registry's audio.
+		providers.Audio = bot.Platform()
+		slog.Info("discord bot connected", "guild_id", cfg.Discord.GuildID)
+	}
+
+	// ── Startup summary ───────────────────────────────────────────────────────
+	printStartupSummary(cfg)
 
 	application, err := app.New(ctx, cfg, providers)
 	if err != nil {
 		slog.Error("failed to initialise application", "err", err)
 		return 1
+	}
+
+	// Start the Discord bot interaction loop in a separate goroutine.
+	if bot != nil {
+		go func() {
+			if err := bot.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				slog.Error("discord bot error", "err", err)
+			}
+		}()
 	}
 
 	slog.Info("server ready — press Ctrl+C to shut down")
@@ -98,6 +127,14 @@ func run() int {
 	defer cancel()
 
 	slog.Info("shutdown signal received, stopping…")
+
+	// Close the Discord bot first (unregister commands, disconnect).
+	if bot != nil {
+		if err := bot.Close(); err != nil {
+			slog.Warn("discord bot close error", "err", err)
+		}
+	}
+
 	if err := application.Shutdown(shutdownCtx); err != nil {
 		slog.Error("shutdown error", "err", err)
 		return 1
@@ -369,6 +406,11 @@ func printStartupSummary(cfg *config.Config) {
 	printProvider("Embeddings", cfg.Providers.Embeddings.Name, cfg.Providers.Embeddings.Model)
 	printProvider("VAD", cfg.Providers.VAD.Name, "")
 	printProvider("Audio", cfg.Providers.Audio.Name, "")
+	if cfg.Discord.Token != "" {
+		fmt.Printf("║  Discord         : %-19s ║\n", "connected")
+	} else {
+		fmt.Printf("║  Discord         : %-19s ║\n", "(disabled)")
+	}
 	fmt.Printf("║  NPCs configured : %-19d ║\n", len(cfg.NPCs))
 	fmt.Printf("║  MCP servers     : %-19d ║\n", len(cfg.MCP.Servers))
 	if cfg.Server.ListenAddr != "" {

@@ -15,6 +15,7 @@ import (
 	"github.com/MrWong99/glyphoxa/pkg/memory"
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
+	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
 )
 
 // Compile-time interface check: liveAgent must satisfy NPCAgent.
@@ -56,6 +57,10 @@ type AgentConfig struct {
 	// BudgetTier controls which MCP tools are offered to the LLM based on
 	// latency constraints. Defaults to [mcp.BudgetFast] when zero-valued.
 	BudgetTier mcp.BudgetTier
+
+	// TTS is an optional TTS provider used by [liveAgent.SpeakText] for
+	// direct text-to-speech synthesis. When nil, SpeakText returns an error.
+	TTS tts.Provider
 }
 
 // defaultAudioPriority is the priority used when enqueuing NPC audio segments.
@@ -67,14 +72,15 @@ const defaultAudioPriority = 1
 // tool wiring, and audio output. Concurrent calls to [liveAgent.HandleUtterance]
 // are serialised via an internal mutex to preserve conversational coherence.
 type liveAgent struct {
-	id         string
-	identity   NPCIdentity
-	eng        engine.VoiceEngine
-	assembler  *hotctx.Assembler
-	mcpHost    mcp.Host    // may be nil if no tools
-	mixer      audio.Mixer // may be nil if not using mixer
-	sessionID  string
-	budgetTier mcp.BudgetTier
+	id          string
+	identity    NPCIdentity
+	eng         engine.VoiceEngine
+	assembler   *hotctx.Assembler
+	mcpHost     mcp.Host     // may be nil if no tools
+	mixer       audio.Mixer  // may be nil if not using mixer
+	ttsProvider tts.Provider // may be nil; required for SpeakText
+	sessionID   string
+	budgetTier  mcp.BudgetTier
 
 	mu       sync.Mutex
 	scene    SceneContext
@@ -102,14 +108,15 @@ func NewAgent(cfg AgentConfig) (NPCAgent, error) {
 	}
 
 	a := &liveAgent{
-		id:         cfg.ID,
-		identity:   cfg.Identity,
-		eng:        cfg.Engine,
-		assembler:  cfg.Assembler,
-		mcpHost:    cfg.MCPHost,
-		mixer:      cfg.Mixer,
-		sessionID:  cfg.SessionID,
-		budgetTier: cfg.BudgetTier,
+		id:          cfg.ID,
+		identity:    cfg.Identity,
+		eng:         cfg.Engine,
+		assembler:   cfg.Assembler,
+		mcpHost:     cfg.MCPHost,
+		mixer:       cfg.Mixer,
+		ttsProvider: cfg.TTS,
+		sessionID:   cfg.SessionID,
+		budgetTier:  cfg.BudgetTier,
 	}
 
 	// Wire MCP tools into the engine when a host is provided.
@@ -297,6 +304,52 @@ func (a *liveAgent) UpdateScene(ctx context.Context, scene SceneContext) error {
 	if err := a.eng.InjectContext(ctx, update); err != nil {
 		return fmt.Errorf("agent: inject context: %w", err)
 	}
+
+	return nil
+}
+
+// SpeakText synthesises the given text using this NPC's TTS voice without
+// running it through the LLM. The resulting audio is enqueued in the mixer
+// and a transcript entry is recorded.
+func (a *liveAgent) SpeakText(ctx context.Context, text string) error {
+	if a.ttsProvider == nil {
+		return errors.New("agent: SpeakText requires a TTS provider")
+	}
+
+	// Create a one-shot text channel.
+	textCh := make(chan string, 1)
+	textCh <- text
+	close(textCh)
+
+	audioCh, err := a.ttsProvider.SynthesizeStream(ctx, textCh, a.identity.Voice)
+	if err != nil {
+		return fmt.Errorf("agent: speak text: %w", err)
+	}
+
+	// Enqueue the audio in the mixer at default priority.
+	if a.mixer != nil {
+		seg := &audio.AudioSegment{
+			NPCID:    a.id,
+			Audio:    audioCh,
+			Priority: defaultAudioPriority,
+		}
+		a.mixer.Enqueue(seg, defaultAudioPriority)
+	} else {
+		// Drain to avoid blocking.
+		go func() {
+			for range audioCh {
+			}
+		}()
+	}
+
+	// Record the puppet utterance in conversation history.
+	a.mu.Lock()
+	a.messages = append(a.messages, llm.Message{
+		Role:    "assistant",
+		Content: text,
+		Name:    a.identity.Name,
+	})
+	a.mu.Unlock()
 
 	return nil
 }

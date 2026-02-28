@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -288,6 +289,66 @@ func (o *Orchestrator) BroadcastScene(ctx context.Context, scene agent.SceneCont
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// IsMuted reports whether the agent with the given ID is muted.
+// Returns an error if id does not correspond to a registered agent.
+func (o *Orchestrator) IsMuted(id string) (bool, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	entry, ok := o.agents[id]
+	if !ok {
+		return false, fmt.Errorf("orchestrator: agent %q not found", id)
+	}
+	return entry.muted, nil
+}
+
+// MuteAll mutes all agents atomically and returns the number of agents
+// whose mute state was changed (agents already muted are not counted).
+func (o *Orchestrator) MuteAll() int {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	changed := 0
+	for _, e := range o.agents {
+		if !e.muted {
+			e.muted = true
+			changed++
+		}
+	}
+	return changed
+}
+
+// UnmuteAll unmutes all agents atomically and returns the number of agents
+// whose mute state was changed (agents already unmuted are not counted).
+func (o *Orchestrator) UnmuteAll() int {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	changed := 0
+	for _, e := range o.agents {
+		if e.muted {
+			e.muted = false
+			changed++
+		}
+	}
+	return changed
+}
+
+// AgentByName returns the first agent whose Name() matches name
+// (case-insensitive). Returns nil if no match is found.
+func (o *Orchestrator) AgentByName(name string) agent.NPCAgent {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
+
+	lower := strings.ToLower(name)
+	for _, e := range o.agents {
+		if strings.ToLower(e.agent.Name()) == lower {
+			return e.agent
+		}
+	}
+	return nil
 }
 
 // rebuildDetector rebuilds the address detector's name index from the current

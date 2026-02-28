@@ -74,7 +74,7 @@ func TestFallbackGroup_CircuitBreakerSkipsOpenProvider(t *testing.T) {
 	fg.AddFallback("secondary", "secondary")
 
 	// Fail the primary enough to open its breaker.
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		_ = fg.Execute(func(v string) error {
 			if v == "primary" {
 				return errTest

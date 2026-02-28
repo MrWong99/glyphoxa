@@ -15,6 +15,24 @@ server:
   log_level: info
 
 # ────────────────────────────────────────────────────────────
+# Discord bot settings
+# The Discord bot owns the gateway connection and provides
+# slash commands, voice transport, and the DM control surface.
+# Leave the token empty to disable the Discord bot entirely.
+# ────────────────────────────────────────────────────────────
+discord:
+  # Bot token from https://discord.com/developers/applications
+  token: "Bot MTIz..."
+
+  # Target guild (server) ID. Alpha: one guild per bot instance.
+  guild_id: "123456789012345678"
+
+  # Role ID for Dungeon Master permissions. Users with this role
+  # can execute /session, /npc, /entity, and /campaign commands.
+  # Leave empty to allow all users (useful for development).
+  dm_role_id: "987654321098765432"
+
+# ────────────────────────────────────────────────────────────
 # Provider configuration
 # Each section selects a named provider and supplies its
 # credentials / model selection. Leave a section empty (just

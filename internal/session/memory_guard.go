@@ -81,6 +81,19 @@ func (mg *MemoryGuard) Search(ctx context.Context, query string, opts memory.Sea
 	return entries, nil
 }
 
+// EntryCount delegates to the underlying store. On failure the error is
+// logged and 0 is returned; the store is marked as degraded.
+func (mg *MemoryGuard) EntryCount(ctx context.Context, sessionID string) (int, error) {
+	n, err := mg.store.EntryCount(ctx, sessionID)
+	if err != nil {
+		mg.degraded.Store(true)
+		slog.Warn("memory guard: EntryCount failed, returning 0", "session", sessionID, "err", err)
+		return 0, nil
+	}
+	mg.degraded.Store(false)
+	return n, nil
+}
+
 // IsDegraded reports whether the store is currently operating in degraded
 // mode (i.e., the most recent operation on the underlying store failed).
 func (mg *MemoryGuard) IsDegraded() bool {

@@ -63,6 +63,9 @@ type NPCAgent struct {
 	// UpdateSceneError is returned by [NPCAgent.UpdateScene].
 	UpdateSceneError error
 
+	// SpeakTextError is returned by [NPCAgent.SpeakText].
+	SpeakTextError error
+
 	// HandleUtteranceCalls records all HandleUtterance invocations.
 	HandleUtteranceCalls []HandleUtteranceCall
 
@@ -80,6 +83,9 @@ type NPCAgent struct {
 
 	// CallCountEngine records how many times Engine was called.
 	CallCountEngine int
+
+	// SpeakTextCalls records the text passed to each SpeakText call.
+	SpeakTextCalls []string
 }
 
 // ID implements [agent.NPCAgent]. Returns IDResult.
@@ -131,6 +137,14 @@ func (n *NPCAgent) UpdateScene(_ context.Context, scene agent.SceneContext) erro
 	defer n.mu.Unlock()
 	n.UpdateSceneCalls = append(n.UpdateSceneCalls, UpdateSceneCall{Scene: scene})
 	return n.UpdateSceneError
+}
+
+// SpeakText implements [agent.NPCAgent]. Records the text and returns SpeakTextError.
+func (n *NPCAgent) SpeakText(_ context.Context, text string) error {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.SpeakTextCalls = append(n.SpeakTextCalls, text)
+	return n.SpeakTextError
 }
 
 // ─── Router ───────────────────────────────────────────────────────────────────

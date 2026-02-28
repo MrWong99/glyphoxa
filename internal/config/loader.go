@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"slices"
 
 	"github.com/MrWong99/glyphoxa/internal/mcp"
 	"gopkg.in/yaml.v3"
@@ -175,10 +176,8 @@ func validateProviderName(kind, name string) {
 	if !ok {
 		return
 	}
-	for _, k := range known {
-		if k == name {
-			return
-		}
+	if slices.Contains(known, name) {
+		return
 	}
 	slog.Warn("unknown provider name — may be a typo or third-party provider",
 		"kind", kind,

@@ -7,6 +7,7 @@ import (
 	"github.com/MrWong99/glyphoxa/internal/hotctx"
 	"github.com/MrWong99/glyphoxa/internal/mcp"
 	"github.com/MrWong99/glyphoxa/pkg/audio"
+	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
 )
 
 // Loader creates [NPCAgent] instances by wiring together their dependencies.
@@ -18,10 +19,11 @@ import (
 //
 // Loader is safe for concurrent use after construction; its fields are immutable.
 type Loader struct {
-	assembler *hotctx.Assembler
-	mcpHost   mcp.Host
-	mixer     audio.Mixer
-	sessionID string
+	assembler   *hotctx.Assembler
+	mcpHost     mcp.Host
+	mixer       audio.Mixer
+	ttsProvider tts.Provider
+	sessionID   string
 }
 
 // LoaderOption is a functional option for [NewLoader].
@@ -37,6 +39,12 @@ func WithMCPHost(host mcp.Host) LoaderOption {
 // agent it creates, enabling audio playback through the shared mixer.
 func WithMixer(mixer audio.Mixer) LoaderOption {
 	return func(l *Loader) { l.mixer = mixer }
+}
+
+// WithTTS configures the [Loader] to inject the given [tts.Provider] into every
+// agent it creates, enabling [NPCAgent.SpeakText] for DM puppet mode.
+func WithTTS(provider tts.Provider) LoaderOption {
+	return func(l *Loader) { l.ttsProvider = provider }
 }
 
 // NewLoader creates a [Loader] with the given shared dependencies.
@@ -82,6 +90,7 @@ func (l *Loader) Load(id string, identity NPCIdentity, eng engine.VoiceEngine, b
 		Assembler:  l.assembler,
 		MCPHost:    l.mcpHost,
 		Mixer:      l.mixer,
+		TTS:        l.ttsProvider,
 		SessionID:  l.sessionID,
 		BudgetTier: budgetTier,
 	})

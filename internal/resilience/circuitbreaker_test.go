@@ -47,7 +47,7 @@ func TestCircuitBreaker_ClosedToOpen(t *testing.T) {
 	})
 
 	// 3 consecutive failures should open the breaker.
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		_ = cb.Execute(func() error { return errTest })
 	}
 
@@ -125,7 +125,7 @@ func TestCircuitBreaker_HalfOpenToClosed(t *testing.T) {
 	time.Sleep(15 * time.Millisecond)
 
 	// Successful probe calls should close the breaker.
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		err := cb.Execute(func() error { return nil })
 		if err != nil {
 			t.Fatalf("probe %d: unexpected error: %v", i, err)

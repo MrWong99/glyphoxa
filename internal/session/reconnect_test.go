@@ -108,8 +108,7 @@ func TestReconnector_ReconnectOnDisconnect(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	r.Monitor(ctx)
 
@@ -157,8 +156,7 @@ func TestReconnector_ExponentialBackoff(t *testing.T) {
 	r.conn = &audiomock.Connection{}
 	r.mu.Unlock()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	r.Monitor(ctx)
 	r.NotifyDisconnect()
@@ -202,8 +200,7 @@ func TestReconnector_MaxRetriesExhausted(t *testing.T) {
 	r.conn = &audiomock.Connection{}
 	r.mu.Unlock()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	r.Monitor(ctx)
 	r.NotifyDisconnect()
