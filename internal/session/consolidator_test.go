@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MrWong99/glyphoxa/pkg/memory"
 	memorymock "github.com/MrWong99/glyphoxa/pkg/memory/mock"
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 )
@@ -131,11 +132,12 @@ func TestConsolidator_ConsolidateNow(t *testing.T) {
 		calls := store.Calls()
 		for _, call := range calls {
 			if call.Method == "WriteEntry" && len(call.Args) > 1 {
-				// The entry text should not be a summary.
-				// (Summary messages start with "[Previous conversation summary]")
+				entry, ok := call.Args[1].(memory.TranscriptEntry)
+				if ok && len(entry.Text) > 0 && entry.Text[0] == '[' {
+					t.Errorf("summary message should not be written to store, got: %s", entry.Text)
+				}
 			}
 		}
-		// At minimum, no crash and the consolidation completed.
 	})
 }
 

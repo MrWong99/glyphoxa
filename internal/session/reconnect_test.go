@@ -127,7 +127,7 @@ func TestReconnector_ReconnectOnDisconnect(t *testing.T) {
 		t.Error("expected OnReconnect to be called with conn2")
 	}
 
-	r.Stop()
+	_ = r.Stop()
 }
 
 func TestReconnector_ExponentialBackoff(t *testing.T) {
@@ -176,7 +176,7 @@ func TestReconnector_ExponentialBackoff(t *testing.T) {
 		t.Errorf("expected at least 4 connection attempts, got %d", attempts)
 	}
 
-	r.Stop()
+	_ = r.Stop()
 }
 
 func TestReconnector_MaxRetriesExhausted(t *testing.T) {
@@ -220,7 +220,7 @@ func TestReconnector_MaxRetriesExhausted(t *testing.T) {
 		t.Errorf("expected 2 connect attempts, got %d", got)
 	}
 
-	r.Stop()
+	_ = r.Stop()
 }
 
 func TestReconnector_Stop(t *testing.T) {

@@ -43,7 +43,7 @@ func TestCorrelationID_ReturnsTraceID(t *testing.T) {
 
 	// Verify it's valid hex.
 	for _, c := range cid {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
 			t.Errorf("correlation ID contains non-hex character %q", c)
 			break
 		}
@@ -137,5 +137,5 @@ func TestTracer_ReturnsValidTracer(t *testing.T) {
 		t.Fatal("Tracer() returned nil")
 	}
 	// The tracer should implement the trace.Tracer interface.
-	var _ trace.Tracer = tr
+	_ = trace.Tracer(tr)
 }
