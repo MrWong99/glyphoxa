@@ -129,8 +129,7 @@ func registerBuiltinProviders(reg *config.Registry) {
 		"openai", "anthropic", "gemini",
 		"deepseek", "mistral", "groq", "llamacpp", "llamafile",
 	} {
-		name := providerName // per-iteration capture
-		reg.RegisterLLM(name, func(entry config.ProviderEntry) (llm.Provider, error) {
+		reg.RegisterLLM(providerName, func(entry config.ProviderEntry) (llm.Provider, error) {
 			var opts []anyllmlib.Option
 			if entry.APIKey != "" {
 				opts = append(opts, anyllmlib.WithAPIKey(entry.APIKey))
@@ -138,7 +137,7 @@ func registerBuiltinProviders(reg *config.Registry) {
 			if entry.BaseURL != "" {
 				opts = append(opts, anyllmlib.WithBaseURL(entry.BaseURL))
 			}
-			p, err := anyllm.New(name, entry.Model, opts...)
+			p, err := anyllm.New(providerName, entry.Model, opts...)
 			if err != nil {
 				return nil, err
 			}
