@@ -201,6 +201,9 @@ func registerBuiltinProviders(reg *config.Registry) {
 		if lang := optString(entry.Options, "language"); lang != "" {
 			opts = append(opts, coqui.WithLanguage(lang))
 		}
+		if mode := optString(entry.Options, "api_mode"); mode != "" {
+			opts = append(opts, coqui.WithAPIMode(coqui.APIMode(mode)))
+		}
 		return coqui.New(entry.BaseURL, opts...)
 	})
 

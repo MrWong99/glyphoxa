@@ -598,8 +598,8 @@ func TestSynthesizeStream_StandardAPI(t *testing.T) {
 	wavData := buildTestWAV(wantPCM)
 
 	var (
-		reqMu    sync.Mutex
-		gotReqs  []*http.Request
+		reqMu   sync.Mutex
+		gotReqs []*http.Request
 	)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != apiTTSEndpoint {
