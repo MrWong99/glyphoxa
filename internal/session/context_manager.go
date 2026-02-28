@@ -136,6 +136,13 @@ func (cm *ContextManager) summariseOldest(ctx context.Context) error {
 	toSummarise := make([]llm.Message, half)
 	copy(toSummarise, cm.messages[:half])
 
+	// Calculate tokens from our snapshot before releasing the lock, so we
+	// don't depend on cm.messages[:half] being unchanged after relock.
+	removedTokens := 0
+	for _, m := range toSummarise {
+		removedTokens += estimateTokens(m)
+	}
+
 	// Temporarily release the lock for the (potentially slow) LLM call.
 	cm.mu.Unlock()
 	summary, err := cm.summariser.Summarise(ctx, toSummarise)
@@ -144,14 +151,14 @@ func (cm *ContextManager) summariseOldest(ctx context.Context) error {
 		return err
 	}
 
-	// Recalculate tokens for the removed messages.
-	removedTokens := 0
-	for _, m := range cm.messages[:half] {
-		removedTokens += estimateTokens(m)
+	// Remove summarised messages from the front. New messages may have been
+	// appended by concurrent AddMessages calls while we were unlocked, but
+	// the first `half` entries are unchanged (AddMessages only appends).
+	if half <= len(cm.messages) {
+		cm.messages = cm.messages[half:]
+	} else {
+		cm.messages = cm.messages[:0]
 	}
-
-	// Remove summarised messages from the front.
-	cm.messages = cm.messages[half:]
 	cm.currentTokens -= removedTokens
 
 	// Add summary tokens.

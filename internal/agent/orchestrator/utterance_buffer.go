@@ -102,6 +102,9 @@ func (b *UtteranceBuffer) Entries() []BufferEntry {
 
 // evict removes entries that are too old or exceed maxSize.
 // Must be called with b.mu held.
+//
+// Surviving entries are copied to a fresh backing array to prevent the old
+// (evicted) entries from pinning memory for the lifetime of the session.
 func (b *UtteranceBuffer) evict() {
 	cutoff := time.Now().Add(-b.maxAge)
 
@@ -110,12 +113,18 @@ func (b *UtteranceBuffer) evict() {
 	for start < len(b.entries) && b.entries[start].Timestamp.Before(cutoff) {
 		start++
 	}
-	if start > 0 {
-		b.entries = b.entries[start:]
-	}
+
+	keep := b.entries[start:]
 
 	// Evict by size — keep only the most recent maxSize entries.
-	if len(b.entries) > b.maxSize {
-		b.entries = b.entries[len(b.entries)-b.maxSize:]
+	if len(keep) > b.maxSize {
+		keep = keep[len(keep)-b.maxSize:]
+	}
+
+	// Copy to a fresh slice so evicted entries can be garbage collected.
+	if start > 0 || len(keep) < len(b.entries) {
+		fresh := make([]BufferEntry, len(keep), b.maxSize)
+		copy(fresh, keep)
+		b.entries = fresh
 	}
 }

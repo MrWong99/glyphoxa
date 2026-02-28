@@ -218,6 +218,11 @@ type session struct {
 	done chan struct{}
 	once sync.Once
 	wg   sync.WaitGroup
+
+	// inferBuf is a reusable buffer for building multipart form data in
+	// infer(). Only accessed from the single-threaded processLoop goroutine
+	// so no synchronisation is needed.
+	inferBuf bytes.Buffer
 }
 
 // SendAudio queues a chunk of raw 16-bit little-endian signed PCM audio for
@@ -376,11 +381,14 @@ func (s *session) processLoop(ctx context.Context) {
 
 // infer encodes pcm as a WAV file and POSTs it to the whisper.cpp /inference
 // endpoint as multipart/form-data. It returns the transcribed text or an error.
+//
+// infer reuses s.inferBuf to avoid allocating a new multipart buffer on every
+// flush. This is safe because infer is only called from processLoop.
 func (s *session) infer(ctx context.Context, pcm []byte) (string, error) {
 	wav := encodeWAV(pcm, s.sampleRate, s.channels)
 
-	var body bytes.Buffer
-	mw := multipart.NewWriter(&body)
+	s.inferBuf.Reset()
+	mw := multipart.NewWriter(&s.inferBuf)
 
 	// Primary audio field.
 	fw, err := mw.CreateFormFile("file", "audio.wav")
@@ -408,7 +416,7 @@ func (s *session) infer(ctx context.Context, pcm []byte) (string, error) {
 	}
 
 	endpoint := s.serverURL + "/inference"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &body)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, &s.inferBuf)
 	if err != nil {
 		return "", fmt.Errorf("whisper: create request: %w", err)
 	}

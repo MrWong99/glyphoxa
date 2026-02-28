@@ -85,6 +85,12 @@ type liveAgent struct {
 	mu       sync.Mutex
 	scene    SceneContext
 	messages []llm.Message // recent conversation history
+
+	// toolCtxMu guards toolCtx independently from mu to avoid deadlock
+	// when tool calls are invoked from engine background goroutines while
+	// mu is held by HandleUtterance.
+	toolCtxMu sync.Mutex
+	toolCtx   context.Context
 }
 
 // NewAgent creates a concrete [NPCAgent] from the given configuration.
@@ -126,7 +132,15 @@ func NewAgent(cfg AgentConfig) (NPCAgent, error) {
 			return nil, fmt.Errorf("agent: set tools: %w", err)
 		}
 		cfg.Engine.OnToolCall(func(name string, args string) (string, error) {
-			result, err := cfg.MCPHost.ExecuteTool(context.Background(), name, args)
+			// Use the context from the active HandleUtterance call so that
+			// tool execution respects session cancellation.
+			a.toolCtxMu.Lock()
+			ctx := a.toolCtx
+			a.toolCtxMu.Unlock()
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			result, err := cfg.MCPHost.ExecuteTool(ctx, name, args)
 			if err != nil {
 				return "", fmt.Errorf("agent: execute tool %q: %w", name, err)
 			}
@@ -225,6 +239,12 @@ func (a *liveAgent) HandleUtterance(ctx context.Context, speaker string, transcr
 		Channels:   1,
 		Timestamp:  0,
 	}
+
+	// Store the context for tool call handlers that may run in engine
+	// background goroutines (e.g., cascade strong-model stage).
+	a.toolCtxMu.Lock()
+	a.toolCtx = ctx
+	a.toolCtxMu.Unlock()
 
 	resp, err := a.eng.Process(ctx, frame, promptCtx)
 	if err != nil {

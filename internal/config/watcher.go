@@ -120,11 +120,11 @@ func (w *Watcher) check() {
 	}
 
 	w.mu.Lock()
-	defer w.mu.Unlock()
 
 	if hash == w.lastHash {
 		// File was touched but content is identical.
 		w.lastMtime = newMtime
+		w.mu.Unlock()
 		return
 	}
 
@@ -132,9 +132,11 @@ func (w *Watcher) check() {
 	w.current = cfg
 	w.lastHash = hash
 	w.lastMtime = newMtime
+	w.mu.Unlock()
 
 	slog.Info("config watcher: configuration reloaded", "path", w.path)
 
+	// Invoke the callback outside the lock so it can safely call Current().
 	if w.onChange != nil {
 		w.onChange(old, cfg)
 	}
