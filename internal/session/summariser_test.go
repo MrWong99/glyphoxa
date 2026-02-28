@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	llmmock "github.com/MrWong99/glyphoxa/pkg/provider/llm/mock"
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
+	llmmock "github.com/MrWong99/glyphoxa/pkg/provider/llm/mock"
 )
 
 func TestLLMSummariser_Summarise(t *testing.T) {

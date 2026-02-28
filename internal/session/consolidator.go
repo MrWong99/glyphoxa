@@ -26,12 +26,12 @@ type Consolidator struct {
 	interval   time.Duration
 	sessionID  string
 
-	mu       sync.Mutex
+	mu sync.Mutex
 	// lastIndex tracks how many messages have already been consolidated
 	// to avoid writing duplicates.
 	lastIndex int
-	done     chan struct{}
-	stopOnce sync.Once
+	done      chan struct{}
+	stopOnce  sync.Once
 }
 
 // ConsolidatorConfig configures a [Consolidator].

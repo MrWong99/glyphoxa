@@ -60,7 +60,7 @@ type Connection struct {
 
 	mu           sync.RWMutex
 	peers        map[string]*peer
-	inputStreams  map[string]chan audio.AudioFrame
+	inputStreams map[string]chan audio.AudioFrame
 	outputCh     chan audio.AudioFrame
 	outputWriter *OutputWriter
 	onChange     func(audio.Event)

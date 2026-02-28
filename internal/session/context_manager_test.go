@@ -24,10 +24,10 @@ func (m *mockSummariser) Summarise(_ context.Context, messages []llm.Message) (s
 
 func TestEstimateTokens(t *testing.T) {
 	tests := []struct {
-		name     string
-		msg      llm.Message
-		wantMin  int
-		wantMax  int
+		name    string
+		msg     llm.Message
+		wantMin int
+		wantMax int
 	}{
 		{
 			name:    "empty message",
@@ -102,8 +102,8 @@ func TestContextManager_AddMessages(t *testing.T) {
 	t.Run("triggers summarisation when threshold exceeded", func(t *testing.T) {
 		s := &mockSummariser{result: "condensed"}
 		cm := NewContextManager(ContextManagerConfig{
-			MaxTokens:      100,   // very small window
-			ThresholdRatio: 0.5,   // trigger at 50 tokens
+			MaxTokens:      100, // very small window
+			ThresholdRatio: 0.5, // trigger at 50 tokens
 			Summariser:     s,
 		})
 

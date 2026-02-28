@@ -3,10 +3,10 @@ package config
 // ConfigDiff describes what changed between two configs.
 // Only fields that can be safely hot-reloaded are tracked.
 type ConfigDiff struct {
-	NPCsChanged    bool       // true if any NPC personality, voice, or budget_tier changed
-	NPCChanges     []NPCDiff  // per-NPC diffs
+	NPCsChanged     bool      // true if any NPC personality, voice, or budget_tier changed
+	NPCChanges      []NPCDiff // per-NPC diffs
 	LogLevelChanged bool
-	NewLogLevel    LogLevel
+	NewLogLevel     LogLevel
 }
 
 // NPCDiff describes what changed for a single NPC between two configs.
