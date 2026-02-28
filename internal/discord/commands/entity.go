@@ -398,7 +398,7 @@ func (ec *EntityCommands) handleImport(s *discordgo.Session, i *discordgo.Intera
 
 	format := DetectFormat(attachment.Filename)
 	if format == FormatUnknown {
-		discord.RespondEphemeral(s, i, fmt.Sprintf("Unsupported file format. Use .yaml, .yml, or .json."))
+		discord.RespondEphemeral(s, i, "Unsupported file format. Use .yaml, .yml, or .json.")
 		return
 	}
 

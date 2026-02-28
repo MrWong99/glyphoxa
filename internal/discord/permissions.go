@@ -1,8 +1,10 @@
 package discord
 
-import "slices"
+import (
+	"slices"
 
-import "github.com/bwmarrin/discordgo"
+	"github.com/bwmarrin/discordgo"
+)
 
 // PermissionChecker validates that a Discord user has the DM role
 // before executing privileged slash commands.
