@@ -32,6 +32,7 @@ RUN cmake -B build \
     -DWHISPER_BUILD_EXAMPLES=OFF \
     -DWHISPER_BUILD_TESTS=OFF \
     -DWHISPER_BUILD_SERVER=OFF \
+    -DGGML_NATIVE=OFF \
     && cmake --build build --config Release -j$(nproc)
 
 # ---------------------------------------------------------------------------
