@@ -73,9 +73,7 @@ services:
   # Whisper.cpp is built into the binary — pass the model path via config.
   # ---------------------------------------------------------------------------
   glyphoxa:
-    build:
-      context: ../..
-      dockerfile: deployments/compose/Dockerfile
+    image: ghcr.io/mrwong99/glyphoxa:main
     ports:
       - "8080:8080"
     volumes:
