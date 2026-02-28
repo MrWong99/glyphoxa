@@ -1,3 +1,8 @@
+---
+parent: Design Documents
+nav_order: 11
+---
+
 # Design Decisions — Resolved
 
 All items from the Phase 2 implementation review have been addressed.

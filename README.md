@@ -131,6 +131,26 @@ glyphoxa/
 └── configs/               # Example configuration files
 ```
 
+## 📖 Documentation
+
+Comprehensive guides for developers and contributors — see the [full documentation index](docs/README.md).
+
+| Guide | Description |
+|-------|-------------|
+| [Getting Started](docs/getting-started.md) | Prerequisites, build, first run |
+| [Architecture](docs/architecture.md) | System layers, data flow, key packages |
+| [Configuration](docs/configuration.md) | Complete config field reference |
+| [Providers](docs/providers.md) | Provider system, adding new providers |
+| [NPC Agents](docs/npc-agents.md) | NPC definition, entities, campaigns |
+| [Memory](docs/memory.md) | 3-layer memory system |
+| [MCP Tools](docs/mcp-tools.md) | Tool system, building custom tools |
+| [Audio Pipeline](docs/audio-pipeline.md) | Audio flow, VAD, engine types |
+| [Commands](docs/commands.md) | Discord slash and voice commands |
+| [Deployment](docs/deployment.md) | Docker Compose, production setup |
+| [Observability](docs/observability.md) | Metrics, Grafana, health endpoints |
+| [Testing](docs/testing.md) | Test conventions and patterns |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and debugging |
+
 ## 📚 Design Documents
 
 | Document | Description |
