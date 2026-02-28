@@ -58,14 +58,14 @@ services:
     command:
       - |
         MODEL_FILE="/models/ggml-base.en.bin"
-        if [ -f "$MODEL_FILE" ]; then
-          echo "Model already downloaded: $MODEL_FILE"
+        if [ -f "$${MODEL_FILE}" ]; then
+          echo "Model already downloaded: $${MODEL_FILE}"
           exit 0
         fi
         echo "Downloading whisper model base.en..."
-        curl -L -o "$MODEL_FILE" \
+        curl -L -o "$${MODEL_FILE}" \
           "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin"
-        echo "Model downloaded: $(ls -lh $MODEL_FILE)"
+        echo "Model downloaded: $(ls -lh $${MODEL_FILE})"
     restart: "no"
 
   # ---------------------------------------------------------------------------
