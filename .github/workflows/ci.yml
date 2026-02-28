@@ -9,10 +9,53 @@ on:
 permissions:
   contents: read
 
+env:
+  GOTOOLCHAIN: local
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # Build whisper.cpp static library (shared across jobs via artifacts)
+  # ---------------------------------------------------------------------------
+  whisper-build:
+    name: Build whisper.cpp
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache whisper.cpp build
+        id: cache-whisper
+        uses: actions/cache@v4
+        with:
+          path: /tmp/whisper-install
+          key: whisper-cpp-${{ runner.os }}-${{ runner.arch }}-v1
+
+      - name: Build whisper.cpp
+        if: steps.cache-whisper.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update && sudo apt-get install -y cmake g++
+          git clone --depth 1 https://github.com/ggml-org/whisper.cpp.git /tmp/whisper-src
+          cd /tmp/whisper-src
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DWHISPER_BUILD_EXAMPLES=OFF \
+            -DWHISPER_BUILD_TESTS=OFF \
+            -DWHISPER_BUILD_SERVER=OFF
+          cmake --build build --config Release -j$(nproc)
+          mkdir -p /tmp/whisper-install/include /tmp/whisper-install/lib
+          cp include/whisper.h /tmp/whisper-install/include/
+          cp -r ggml/include/* /tmp/whisper-install/include/ 2>/dev/null || true
+          find build -name '*.a' -exec cp {} /tmp/whisper-install/lib/ \;
+
+      - name: Upload whisper artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: whisper-libs
+          path: /tmp/whisper-install
+          retention-days: 1
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    needs: [whisper-build]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -21,6 +64,18 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+
+      - name: Download whisper artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: whisper-libs
+          path: /tmp/whisper-install
+
+      - name: Set whisper environment
+        run: |
+          echo "C_INCLUDE_PATH=/tmp/whisper-install/include" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/tmp/whisper-install/lib" >> $GITHUB_ENV
+          echo "CGO_ENABLED=1" >> $GITHUB_ENV
 
       - name: Check formatting
         run: |
@@ -42,6 +97,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    needs: [whisper-build]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -50,6 +106,21 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: "go.mod"
+
+      - name: Download whisper artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: whisper-libs
+          path: /tmp/whisper-install
+
+      - name: Set whisper environment
+        run: |
+          echo "C_INCLUDE_PATH=/tmp/whisper-install/include" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/tmp/whisper-install/lib" >> $GITHUB_ENV
+          echo "CGO_ENABLED=1" >> $GITHUB_ENV
+
+      - name: Install C++ runtime
+        run: sudo apt-get update && sudo apt-get install -y g++
 
       - name: Run tests
         run: go test -race -count=1 -timeout 10m ./...
@@ -67,6 +138,21 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - name: Download whisper artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: whisper-libs
+          path: /tmp/whisper-install
+
+      - name: Set whisper environment
+        run: |
+          echo "C_INCLUDE_PATH=/tmp/whisper-install/include" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/tmp/whisper-install/lib" >> $GITHUB_ENV
+          echo "CGO_ENABLED=1" >> $GITHUB_ENV
+
+      - name: Install C++ runtime
+        run: sudo apt-get update && sudo apt-get install -y g++
+
       - name: Run tests with coverage
         run: go test -race -count=1 -coverprofile=coverage.out -timeout 5m ./...
 
@@ -81,6 +167,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    needs: [whisper-build]
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -90,5 +177,20 @@ jobs:
         with:
           go-version-file: "go.mod"
 
+      - name: Download whisper artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: whisper-libs
+          path: /tmp/whisper-install
+
+      - name: Set whisper environment
+        run: |
+          echo "C_INCLUDE_PATH=/tmp/whisper-install/include" >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/tmp/whisper-install/lib" >> $GITHUB_ENV
+          echo "CGO_ENABLED=1" >> $GITHUB_ENV
+
+      - name: Install C++ runtime
+        run: sudo apt-get update && sudo apt-get install -y g++
+
       - name: Build
-        run: go build ./cmd/glyphoxa
+        run: go build -ldflags='-s -w' ./cmd/glyphoxa
