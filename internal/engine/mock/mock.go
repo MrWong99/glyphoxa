@@ -27,6 +27,9 @@ import (
 	"github.com/MrWong99/glyphoxa/pkg/provider/llm"
 )
 
+// Compile-time interface assertion.
+var _ engine.VoiceEngine = (*VoiceEngine)(nil)
+
 // ProcessCall records the arguments of a single [VoiceEngine.Process] call.
 type ProcessCall struct {
 	// Input is the audio frame passed to Process.
