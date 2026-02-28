@@ -62,6 +62,23 @@ jobs:
           mkdir -p /tmp/whisper/arm64/lib
           find build-arm64 -name '*.a' -exec cp {} /tmp/whisper/arm64/lib/ \;
 
+      - name: Build opus (arm64)
+        run: |
+          git clone --depth 1 --branch v1.5.2 https://github.com/xiph/opus.git /tmp/opus-src
+          cd /tmp/opus-src
+          cmake -B build-arm64 \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DOPUS_BUILD_TESTING=OFF \
+            -DOPUS_BUILD_PROGRAMS=OFF \
+            -DCMAKE_INSTALL_PREFIX=/tmp/opus/arm64
+          cmake --build build-arm64 --config Release -j$(nproc)
+          cmake --install build-arm64
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:

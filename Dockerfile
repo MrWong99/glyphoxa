@@ -41,7 +41,7 @@ RUN cmake -B build \
 FROM golang:1.26 AS build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ libc6-dev \
+    gcc g++ libc6-dev libopus-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy whisper.cpp headers and static libraries from the build stage.
