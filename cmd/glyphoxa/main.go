@@ -145,16 +145,6 @@ func run() int {
 
 // ── Provider wiring ───────────────────────────────────────────────────────────
 
-// builtinProviders maps provider category names to the implementations that
-// ship with Glyphoxa. Used for startup logging.
-var builtinProviders = map[string][]string{
-	"llm":        {"openai", "anthropic", "ollama", "gemini", "deepseek", "mistral", "groq", "llamacpp", "llamafile"},
-	"stt":        {"deepgram", "whisper", "whisper-native"},
-	"tts":        {"elevenlabs", "coqui"},
-	"s2s":        {"openai-realtime", "gemini-live"},
-	"embeddings": {"openai", "ollama"},
-}
-
 // registerBuiltinProviders wires all built-in provider factories into reg.
 // Each factory receives a config.ProviderEntry and constructs the appropriate
 // provider from the real implementation packages.
@@ -294,7 +284,7 @@ func registerBuiltinProviders(reg *config.Registry) {
 	})
 
 	// Debug log of all registered providers.
-	for kind, names := range builtinProviders {
+	for kind, names := range config.ValidProviderNames {
 		for _, name := range names {
 			slog.Debug("registered provider", "kind", kind, "name", name)
 		}

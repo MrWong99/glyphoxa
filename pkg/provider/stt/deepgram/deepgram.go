@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -289,6 +290,7 @@ func (s *session) readLoop(ctx context.Context) {
 func parseDeepgramResponse(data []byte) (stt.Transcript, bool) {
 	var resp deepgramResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
+		slog.Debug("deepgram: failed to parse response", "err", err)
 		return stt.Transcript{}, false
 	}
 	if resp.Type != "Results" {

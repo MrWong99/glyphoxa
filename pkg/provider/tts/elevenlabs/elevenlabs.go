@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
-	"strings"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/tts"
 	"github.com/coder/websocket"
@@ -291,6 +290,3 @@ func parseVoicesResponse(data []byte) ([]tts.VoiceProfile, error) {
 	}
 	return profiles, nil
 }
-
-// Ensure the strings package is used (imported for potential future use).
-var _ = strings.Contains

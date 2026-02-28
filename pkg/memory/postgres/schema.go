@@ -53,6 +53,9 @@ CREATE INDEX IF NOT EXISTS idx_session_entries_session_id
 CREATE INDEX IF NOT EXISTS idx_session_entries_timestamp
     ON session_entries (timestamp);
 
+CREATE INDEX IF NOT EXISTS idx_session_entries_session_timestamp
+    ON session_entries (session_id, timestamp);
+
 CREATE INDEX IF NOT EXISTS idx_session_entries_fts
     ON session_entries USING GIN (to_tsvector('english', text));
 `

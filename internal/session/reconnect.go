@@ -187,8 +187,14 @@ func (r *Reconnector) attemptReconnect(ctx context.Context) {
 		conn, err := r.platform.Connect(ctx, r.channelID)
 		if err == nil {
 			r.mu.Lock()
+			oldConn := r.conn
 			r.conn = conn
 			r.mu.Unlock()
+
+			// Disconnect the old (failed) connection to release its resources.
+			if oldConn != nil {
+				_ = oldConn.Disconnect()
+			}
 
 			slog.Info("reconnection successful",
 				"channel_id", r.channelID,

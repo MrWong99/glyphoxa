@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -200,6 +199,3 @@ func TestMiddleware_PropagatesW3CTraceContext(t *testing.T) {
 		t.Errorf("response X-Correlation-ID = %q, want %q", got, "4bf92f3577b34da6a3ce929d0e0e4736")
 	}
 }
-
-// Verify unused import suppression.
-var _ = attribute.String("", "")

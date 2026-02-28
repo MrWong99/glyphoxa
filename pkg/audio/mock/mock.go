@@ -26,6 +26,13 @@ import (
 	"github.com/MrWong99/glyphoxa/pkg/audio"
 )
 
+// Compile-time interface assertions.
+var (
+	_ audio.Connection = (*Connection)(nil)
+	_ audio.Platform   = (*Platform)(nil)
+	_ audio.Mixer      = (*Mixer)(nil)
+)
+
 // ─── Connection ───────────────────────────────────────────────────────────────
 
 // Connection is a mock implementation of [audio.Connection].

@@ -27,7 +27,9 @@ type fallbackEntry[T any] struct {
 // provider type. When the primary fails (or its circuit breaker is open), the
 // next healthy fallback is tried in registration order.
 //
-// FallbackGroup is safe for concurrent use.
+// [FallbackGroup.Execute] and [ExecuteWithResult] are safe for concurrent use.
+// [FallbackGroup.AddFallback] must be called during initialisation, before any
+// concurrent Execute calls — it is NOT safe to call concurrently with Execute.
 type FallbackGroup[T any] struct {
 	entries []fallbackEntry[T]
 	cfg     FallbackConfig
@@ -52,6 +54,9 @@ func NewFallbackGroup[T any](primary T, primaryName string, cfg FallbackConfig) 
 
 // AddFallback appends a fallback provider. Fallbacks are tried in the order they
 // are added, after the primary.
+//
+// AddFallback must only be called during initialisation, before any concurrent
+// calls to [FallbackGroup.Execute] or [ExecuteWithResult].
 func (fg *FallbackGroup[T]) AddFallback(name string, fallback T) {
 	cbCfg := fg.cfg.CircuitBreaker
 	cbCfg.Name = name

@@ -259,14 +259,22 @@ func (e *Engine) Transcripts() <-chan memory.TranscriptEntry {
 
 // Close releases all resources held by the engine and closes the Transcripts
 // channel. Close is safe to call multiple times; subsequent calls return nil.
+//
+// Close waits for all background goroutines spawned by [Engine.Process] to
+// finish before closing the transcript channel, preventing writes to a closed
+// channel.
 func (e *Engine) Close() error {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 	if e.closed {
+		e.mu.Unlock()
 		return nil
 	}
 	e.closed = true
 	close(e.done)
+	e.mu.Unlock()
+
+	// Wait for in-flight Process goroutines before closing the channel.
+	e.wg.Wait()
 	close(e.transcriptCh)
 	return nil
 }
@@ -360,11 +368,11 @@ func (e *Engine) collectFirstSentence(ctx context.Context, ch <-chan llm.Chunk) 
 			}
 
 			// Look for a sentence boundary only while the stream is live.
-			if idx := firstSentenceBoundary(buf.String()); idx >= 0 {
-				s := buf.String()[:idx+1]
+			s := buf.String()
+			if idx := firstSentenceBoundary(s); idx >= 0 {
 				// Drain remaining fast-model output to avoid goroutine leaks.
 				go drainChunks(ch)
-				return s, false
+				return s[:idx+1], false
 			}
 		}
 	}
@@ -396,13 +404,15 @@ func (e *Engine) forwardSentences(ctx context.Context, ch <-chan llm.Chunk, text
 			}
 
 			// Flush complete sentences eagerly for lower TTS latency.
+			// Call buf.String() once per iteration to avoid redundant allocations.
 			for {
-				idx := firstSentenceBoundary(buf.String())
+				s := buf.String()
+				idx := firstSentenceBoundary(s)
 				if idx < 0 {
 					break
 				}
-				sentence := buf.String()[:idx+1]
-				rest := buf.String()[idx+1:]
+				sentence := s[:idx+1]
+				rest := s[idx+1:]
 				buf.Reset()
 				buf.WriteString(strings.TrimLeft(rest, " \t\n\r"))
 				select {

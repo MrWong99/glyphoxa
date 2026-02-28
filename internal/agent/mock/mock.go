@@ -25,6 +25,12 @@ import (
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 )
 
+// Compile-time interface assertions.
+var (
+	_ agent.NPCAgent = (*NPCAgent)(nil)
+	_ agent.Router   = (*Router)(nil)
+)
+
 // ─── NPCAgent ─────────────────────────────────────────────────────────────────
 
 // HandleUtteranceCall records the arguments of a single [NPCAgent.HandleUtterance] invocation.

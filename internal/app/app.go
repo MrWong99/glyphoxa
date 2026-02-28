@@ -102,6 +102,15 @@ func WithMCPHost(h mcp.Host) Option {
 	return func(a *App) { a.mcpHost = h }
 }
 
+// sessionID returns the canonical session identifier derived from the campaign
+// name. It falls back to "session-default" when no campaign is configured.
+func (a *App) sessionID() string {
+	if a.cfg.Campaign.Name != "" {
+		return "session-" + a.cfg.Campaign.Name
+	}
+	return "session-default"
+}
+
 // ─── New ─────────────────────────────────────────────────────────────────────
 
 // New creates an App by wiring all subsystems together. The providers struct
@@ -258,14 +267,9 @@ func (a *App) initAgents(ctx context.Context) error {
 		return nil
 	}
 
-	sessionID := "session-" + a.cfg.Campaign.Name
-	if sessionID == "session-" {
-		sessionID = "session-default"
-	}
-
 	loader, err := agent.NewLoader(
 		a.assembler,
-		sessionID,
+		a.sessionID(),
 		agent.WithMCPHost(a.mcpHost),
 		agent.WithMixer(a.mixer),
 	)
@@ -511,10 +515,7 @@ func (a *App) handleSTTFinals(ctx context.Context, userID string, sess stt.Sessi
 // to the session store.
 func (a *App) recordTranscripts(ctx context.Context, ag agent.NPCAgent) {
 	ch := ag.Engine().Transcripts()
-	sessionID := "session-" + a.cfg.Campaign.Name
-	if sessionID == "session-" {
-		sessionID = "session-default"
-	}
+	sid := a.sessionID()
 	for {
 		select {
 		case <-ctx.Done():
@@ -523,7 +524,7 @@ func (a *App) recordTranscripts(ctx context.Context, ag agent.NPCAgent) {
 			if !ok {
 				return
 			}
-			if err := a.sessions.WriteEntry(ctx, sessionID, entry); err != nil {
+			if err := a.sessions.WriteEntry(ctx, sid, entry); err != nil {
 				slog.Warn("failed to record transcript", "npc", ag.Name(), "err", err)
 			}
 		}

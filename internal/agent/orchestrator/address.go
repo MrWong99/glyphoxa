@@ -16,12 +16,23 @@ import (
 // was addressed by a player's utterance.
 var ErrNoTarget = errors.New("orchestrator: no target NPC identified")
 
+// candidate is a pre-sorted name-to-ID mapping entry.
+type candidate struct {
+	key string
+	id  string
+}
+
 // AddressDetector determines which NPC was spoken to by scanning the
 // transcript text for NPC names, falling back through a priority chain of
 // heuristics (DM override → last-speaker continuation → single-NPC fallback).
 type AddressDetector struct {
 	// nameIndex maps lowercase NPC names (and name fragments) to agent IDs.
 	nameIndex map[string]string
+
+	// sorted is the nameIndex entries pre-sorted by descending key length
+	// so that more specific (longer) names match before shorter fragments.
+	// Built once in buildIndex and reused on every matchName call.
+	sorted []candidate
 }
 
 // NewAddressDetector builds a name index from the given agents.
@@ -98,7 +109,8 @@ func (d *AddressDetector) Rebuild(agents []agent.NPCAgent) {
 	d.buildIndex(agents)
 }
 
-// buildIndex populates nameIndex from the given agents.
+// buildIndex populates nameIndex from the given agents and pre-sorts
+// candidates by descending key length for efficient matching.
 func (d *AddressDetector) buildIndex(agents []agent.NPCAgent) {
 	for _, a := range agents {
 		name := a.Name()
@@ -115,31 +127,28 @@ func (d *AddressDetector) buildIndex(agents []agent.NPCAgent) {
 			}
 		}
 	}
+
+	// Pre-sort candidates by descending key length so matchName can iterate
+	// without allocating or sorting per call.
+	d.sorted = make([]candidate, 0, len(d.nameIndex))
+	for key, id := range d.nameIndex {
+		d.sorted = append(d.sorted, candidate{key: key, id: id})
+	}
+	slices.SortFunc(d.sorted, func(a, b candidate) int {
+		return len(b.key) - len(a.key) // descending
+	})
 }
 
 // matchName scans the lowercase transcript text for indexed NPC names.
 // It checks longer keys first so that "grimjaw the blacksmith" is preferred
 // over "grimjaw" when both appear in the text. Only unmuted agents are matched.
+//
+// The pre-sorted candidate list is built once in buildIndex, so this method
+// performs zero allocations and no sorting per call.
 func (d *AddressDetector) matchName(text string, activeAgents map[string]*agentEntry) string {
 	lower := strings.ToLower(text)
 
-	// Build a list sorted by descending key length so that more specific
-	// (longer) names are matched before shorter fragments.
-	type candidate struct {
-		key string
-		id  string
-	}
-	candidates := make([]candidate, 0, len(d.nameIndex))
-	for key, id := range d.nameIndex {
-		candidates = append(candidates, candidate{key: key, id: id})
-	}
-	// Sort descending by key length so that more specific (longer) names are
-	// matched before shorter fragments. slices.SortFunc is O(n log n).
-	slices.SortFunc(candidates, func(a, b candidate) int {
-		return len(b.key) - len(a.key) // descending
-	})
-
-	for _, c := range candidates {
+	for _, c := range d.sorted {
 		if strings.Contains(lower, c.key) {
 			if entry, ok := activeAgents[c.id]; ok && !entry.muted {
 				return c.id

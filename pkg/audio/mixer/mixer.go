@@ -231,6 +231,14 @@ func (m *PriorityMixer) interruptLocked(reason audio.InterruptReason, clearQueue
 func (m *PriorityMixer) dispatch() {
 	var lastPlayed bool // true if a segment was just played (for gap insertion)
 
+	// Reusable timer for inter-segment gaps — avoids allocating a new
+	// time.Timer on every segment transition.
+	gapTimer := time.NewTimer(0)
+	if !gapTimer.Stop() {
+		<-gapTimer.C
+	}
+	defer gapTimer.Stop()
+
 	for {
 		// Wait for work or shutdown.
 		select {
@@ -249,16 +257,23 @@ func (m *PriorityMixer) dispatch() {
 			if lastPlayed {
 				gapDur := m.gapWithJitter()
 				if gapDur > 0 {
+					gapTimer.Reset(gapDur)
 					select {
 					case <-m.done:
+						if !gapTimer.Stop() {
+							<-gapTimer.C
+						}
 						// Drain the segment we just dequeued.
 						go audio.Drain(seg.Audio)
 						return
 					case <-cancel:
+						if !gapTimer.Stop() {
+							<-gapTimer.C
+						}
 						// Interrupted during gap — segment was preempted.
 						go audio.Drain(seg.Audio)
 						continue
-					case <-time.After(gapDur):
+					case <-gapTimer.C:
 					}
 				}
 			}

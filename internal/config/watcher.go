@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"fmt"
 	"io"
@@ -120,11 +121,11 @@ func (w *Watcher) check() {
 	}
 
 	w.mu.Lock()
-	defer w.mu.Unlock()
 
 	if hash == w.lastHash {
 		// File was touched but content is identical.
 		w.lastMtime = newMtime
+		w.mu.Unlock()
 		return
 	}
 
@@ -132,9 +133,11 @@ func (w *Watcher) check() {
 	w.current = cfg
 	w.lastHash = hash
 	w.lastMtime = newMtime
+	w.mu.Unlock()
 
 	slog.Info("config watcher: configuration reloaded", "path", w.path)
 
+	// Invoke the callback outside the lock so it can safely call Current().
 	if w.onChange != nil {
 		w.onChange(old, cfg)
 	}
@@ -166,29 +169,10 @@ func (w *Watcher) loadAndHash() (*Config, [sha256.Size]byte, time.Time, error) {
 	hash := sha256.Sum256(data)
 
 	// Parse using a bytes reader so we don't re-read the file.
-	cfg, err := LoadFromReader(bytesReader(data))
+	cfg, err := LoadFromReader(bytes.NewReader(data))
 	if err != nil {
 		return nil, zeroHash, time.Time{}, err
 	}
 
 	return cfg, hash, info.ModTime(), nil
-}
-
-// bytesReader wraps a byte slice in a minimal io.Reader.
-type bytesReaderImpl struct {
-	data []byte
-	pos  int
-}
-
-func bytesReader(b []byte) io.Reader {
-	return &bytesReaderImpl{data: b}
-}
-
-func (r *bytesReaderImpl) Read(p []byte) (int, error) {
-	if r.pos >= len(r.data) {
-		return 0, io.EOF
-	}
-	n := copy(p, r.data[r.pos:])
-	r.pos += n
-	return n, nil
 }
