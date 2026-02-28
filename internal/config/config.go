@@ -89,11 +89,31 @@ func (b BudgetTier) IsValid() bool {
 // It is typically loaded from a YAML file using [Load] or [LoadFromReader].
 type Config struct {
 	Server    ServerConfig    `yaml:"server"`
+	Discord   DiscordConfig   `yaml:"discord"`
 	Providers ProvidersConfig `yaml:"providers"`
 	NPCs      []NPCConfig     `yaml:"npcs"`
 	Memory    MemoryConfig    `yaml:"memory"`
 	MCP       MCPConfig       `yaml:"mcp"`
 	Campaign  CampaignConfig  `yaml:"campaign"`
+}
+
+// DiscordConfig holds settings for the Discord bot subsystem.
+// When Token is empty, the Discord bot is disabled and Glyphoxa runs
+// without a Discord connection (useful for local development with other
+// audio platforms).
+type DiscordConfig struct {
+	// Token is the Discord bot token (e.g., "Bot MTIz...").
+	Token string `yaml:"token"`
+
+	// GuildID is the target Discord guild (server) ID.
+	// Alpha deployments support a single guild per bot instance.
+	GuildID string `yaml:"guild_id"`
+
+	// DMRoleID is the Discord role ID that identifies Dungeon Masters.
+	// Users with this role can execute privileged slash commands
+	// (/session, /npc, /entity, /campaign). When empty, all users
+	// are treated as DMs (useful for development).
+	DMRoleID string `yaml:"dm_role_id"`
 }
 
 // CampaignConfig holds pre-session entity and campaign data.

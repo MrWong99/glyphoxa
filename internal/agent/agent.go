@@ -122,4 +122,15 @@ type NPCAgent interface {
 	// UpdateScene is non-blocking; the context is queued and applied before the
 	// next HandleUtterance call processes the player's speech.
 	UpdateScene(ctx context.Context, scene SceneContext) error
+
+	// SpeakText synthesises the given text using this NPC's TTS voice
+	// without running it through the LLM. Used by DM puppet mode
+	// (/npc speak) to speak pre-written text in the NPC's voice.
+	//
+	// The resulting audio is enqueued in the mixer. A transcript entry
+	// is recorded with the NPC as the speaker.
+	//
+	// Returns an error if TTS synthesis fails or if the agent has no
+	// TTS provider configured.
+	SpeakText(ctx context.Context, text string) error
 }
