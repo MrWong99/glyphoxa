@@ -66,6 +66,8 @@ Glyphoxa follows standard Go conventions with a few project-specific rules:
 - **Compile-time interface assertions** — `var _ Interface = (*Impl)(nil)`
 - **Mocks** live in `<package>/mock/` subdirectories
 
+For detailed testing patterns, mock conventions, and examples, see the [Testing Guide](docs/testing.md).
+
 ### Concurrency
 
 - Thread-safety is non-negotiable — every public method must be safe for concurrent use
