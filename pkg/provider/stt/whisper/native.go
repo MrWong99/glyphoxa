@@ -13,7 +13,6 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
 	whisperlib "github.com/ggerganov/whisper.cpp/bindings/go/pkg/whisper"
