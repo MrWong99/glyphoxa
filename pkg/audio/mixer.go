@@ -46,6 +46,14 @@ type AudioSegment struct {
 	// [AudioSegment.Err] to check whether synthesis completed cleanly.
 	Audio <-chan []byte
 
+	// SampleRate is the sample rate in Hz of the PCM data on the Audio channel
+	// (e.g., 22050, 44100, 48000). Must be > 0.
+	SampleRate int
+
+	// Channels is the number of audio channels (1 = mono, 2 = stereo).
+	// Must be > 0.
+	Channels int
+
 	// Priority controls scheduling when multiple segments are queued.
 	// Higher values preempt lower ones. Equal-priority segments are played
 	// in FIFO order.

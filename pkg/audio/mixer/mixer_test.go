@@ -19,9 +19,11 @@ func makeSegment(npcID string, priority int, chunks ...[]byte) *audio.AudioSegme
 	}
 	close(ch)
 	return &audio.AudioSegment{
-		NPCID:    npcID,
-		Audio:    ch,
-		Priority: priority,
+		NPCID:      npcID,
+		Audio:      ch,
+		SampleRate: 48000,
+		Channels:   1,
+		Priority:   priority,
 	}
 }
 
@@ -30,9 +32,11 @@ func makeSegment(npcID string, priority int, chunks ...[]byte) *audio.AudioSegme
 func makeOpenSegment(npcID string, priority int) (*audio.AudioSegment, chan []byte) {
 	ch := make(chan []byte, 16)
 	seg := &audio.AudioSegment{
-		NPCID:    npcID,
-		Audio:    ch,
-		Priority: priority,
+		NPCID:      npcID,
+		Audio:      ch,
+		SampleRate: 48000,
+		Channels:   1,
+		Priority:   priority,
 	}
 	return seg, ch
 }
@@ -58,6 +62,24 @@ func collectOutput() (func([]byte), func() [][]byte) {
 		return out
 	}
 	return output, get
+}
+
+func TestAudioSegment_FormatFields(t *testing.T) {
+	ch := make(chan []byte)
+	close(ch)
+	seg := &audio.AudioSegment{
+		NPCID:      "npc-1",
+		Audio:      ch,
+		SampleRate: 22050,
+		Channels:   1,
+		Priority:   5,
+	}
+	if seg.SampleRate != 22050 {
+		t.Fatalf("SampleRate = %d, want 22050", seg.SampleRate)
+	}
+	if seg.Channels != 1 {
+		t.Fatalf("Channels = %d, want 1", seg.Channels)
+	}
 }
 
 func TestBasicPlayback(t *testing.T) {
