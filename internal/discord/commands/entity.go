@@ -125,7 +125,7 @@ func (ec *EntityCommands) handleAdd(s *discordgo.Session, i *discordgo.Interacti
 					Label:       "Name",
 					Style:       discordgo.TextInputShort,
 					Placeholder: "e.g., Gundren Rockseeker",
-					Required:    boolPtr(true),
+					Required:    new(true),
 					MaxLength:   100,
 				},
 			}},
@@ -135,7 +135,7 @@ func (ec *EntityCommands) handleAdd(s *discordgo.Session, i *discordgo.Interacti
 					Label:       "Type (npc, location, item, faction, quest, lore)",
 					Style:       discordgo.TextInputShort,
 					Placeholder: "npc",
-					Required:    boolPtr(true),
+					Required:    new(true),
 					MaxLength:   20,
 				},
 			}},
@@ -145,7 +145,7 @@ func (ec *EntityCommands) handleAdd(s *discordgo.Session, i *discordgo.Interacti
 					Label:       "Description",
 					Style:       discordgo.TextInputParagraph,
 					Placeholder: "A dwarf merchant who hired the party...",
-					Required:    boolPtr(false),
+					Required:    new(false),
 					MaxLength:   2000,
 				},
 			}},
@@ -155,7 +155,7 @@ func (ec *EntityCommands) handleAdd(s *discordgo.Session, i *discordgo.Interacti
 					Label:       "Tags (comma-separated)",
 					Style:       discordgo.TextInputShort,
 					Placeholder: "ally, phandalin, quest-giver",
-					Required:    boolPtr(false),
+					Required:    new(false),
 					MaxLength:   200,
 				},
 			}},
@@ -439,7 +439,9 @@ func (ec *EntityCommands) handleImport(s *discordgo.Session, i *discordgo.Intera
 }
 
 // boolPtr returns a pointer to b. Used for discordgo struct fields that take *bool.
-func boolPtr(b bool) *bool { return &b }
+//
+//go:fix inline
+func boolPtr(b bool) *bool { return new(b) }
 
 // subcommandOptions extracts the options from the first subcommand in an
 // interaction's application command data. Returns nil if no subcommand exists.

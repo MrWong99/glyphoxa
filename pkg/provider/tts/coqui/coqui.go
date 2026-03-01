@@ -666,7 +666,7 @@ func resampleMono16(pcm []byte, srcRate, dstRate int) []byte {
 	out := make([]byte, dstSamples*2)
 	ratio := float64(srcRate) / float64(dstRate)
 
-	for i := 0; i < dstSamples; i++ {
+	for i := range dstSamples {
 		srcPos := float64(i) * ratio
 		srcIdx := int(srcPos)
 		frac := srcPos - float64(srcIdx)
