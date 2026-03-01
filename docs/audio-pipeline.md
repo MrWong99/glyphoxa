@@ -2,13 +2,13 @@
 nav_order: 8
 ---
 
-# :studio_microphone: Audio Pipeline
+# Audio Pipeline
 
 End-to-end documentation for the Glyphoxa audio pipeline -- from player microphone to NPC voice output.
 
 ---
 
-## :mag: Overview
+## Overview
 
 Glyphoxa's audio pipeline is a bidirectional streaming system that captures player speech from a voice platform, detects speech boundaries, processes it through an AI engine, and delivers synthesised NPC responses back to all participants. The entire path is built on Go channels and goroutines, enabling true end-to-end streaming where each pipeline stage begins processing before the previous stage completes.
 
@@ -23,28 +23,28 @@ The pipeline consists of six core stages:
 
 ---
 
-## :level_slider: Audio Flow Diagram
+## Audio Flow Diagram
 
 ```
                             INBOUND (Player -> Engine)
-  ┌───────────┐     ┌──────────────┐     ┌─────────┐     ┌─────────────┐
+  ┌────────────┐     ┌───────────────┐     ┌─────────┐     ┌─────────────┐
   │ Microphone │────>│  Platform     │────>│   VAD   │────>│   Engine    │
   │ (Player)   │     │  Transport    │     │ (Silero)│     │ (Cascaded / │
-  └───────────┘     │  (Discord /   │     └────┬────┘     │  S2S /      │
-                    │   WebRTC)     │          │          │  Cascade)   │
-                    └──────────────┘     SpeechStart/     └──────┬──────┘
-                         │               SpeechEnd              │
-                         │               gates STT              │
+  └────────────┘     │  (Discord /   │     └────┬────┘     │  S2S /      │
+                     │   WebRTC)     │          │          │  Cascade)   │
+                     └───────────────┘    SpeechStart/     └──────┬──────┘
+                         │                 SpeechEnd              │
+                         │                 gates STT              │
                     per-participant                        engine.Response
                     AudioFrame channels                   {Text, Audio <-chan}
-                                                                │
-                           OUTBOUND (Engine -> Speaker)         │
-  ┌───────────┐     ┌──────────────┐     ┌──────────┐          │
-  │  Speaker   │<───│  Platform     │<───│  Audio   │<─────────┘
-  │ (All       │     │  Transport    │     │  Mixer   │
-  │  Players)  │     │  (Discord /   │     │ (Priority│
-  └───────────┘     │   WebRTC)     │     │  Queue)  │
-                    └──────────────┘     └──────────┘
+                                                                 │
+                           OUTBOUND (Engine -> Speaker)          │
+  ┌────────────┐     ┌──────────────┐     ┌──────────┐           │
+  │  Speaker   │<────│  Platform    │<────│  Audio   │<──────────┘
+  │ (All       │     │  Transport   │     │  Mixer   │
+  │  Players)  │     │  (Discord /  │     │ (Priority│
+  └────────────┘     │   WebRTC)    │     │  Queue)  │
+                     └──────────────┘     └──────────┘
                          │                    │
                     Opus encode /        Barge-in detection
                     WebRTC send          DM override
@@ -58,7 +58,7 @@ Player speaks
   │
   ├─ Discord: Opus packet ──> OpusRecv ──> Opus decode ──> PCM AudioFrame
   │                                                             │
-  ├─ WebRTC: PeerTransport.AudioInput() ──> PCM AudioFrame ────┤
+  ├─ WebRTC: PeerTransport.AudioInput() ──> PCM AudioFrame ─────┤
   │                                                             │
   ▼                                                             ▼
   InputStreams()  ─────────────────────────>  per-participant <-chan AudioFrame

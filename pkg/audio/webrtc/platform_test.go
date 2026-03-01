@@ -220,11 +220,11 @@ func TestConnection_OutputStream(t *testing.T) {
 	mt := conn.peers["user-3"].transport.(*mockTransport)
 	conn.mu.RUnlock()
 
-	// Write an NPC frame to the output channel.
-	frame := audio.AudioFrame{Data: []byte{10, 20, 30}, SampleRate: 48000, Channels: 2}
+	// Write an NPC frame to the output channel (stereo, even byte count).
+	frame := audio.AudioFrame{Data: []byte{10, 20, 30, 40}, SampleRate: 48000, Channels: 2}
 	conn.OutputStream() <- frame
 
-	// forwardOutput should deliver it to the mock transport.
+	// forwardOutput should deliver it to the mock transport (already in target format).
 	select {
 	case got := <-mt.audioOut:
 		if string(got.Data) != string(frame.Data) {
@@ -371,12 +371,12 @@ func TestOutputWriter_SendBeforeDisconnect(t *testing.T) {
 	conn.mu.RUnlock()
 
 	w := conn.OutputWriter()
-	frame := audio.AudioFrame{Data: []byte{0xAA, 0xBB}, SampleRate: 48000, Channels: 1}
+	frame := audio.AudioFrame{Data: []byte{0xAA, 0xBB, 0xCC, 0xDD}, SampleRate: 48000, Channels: 2}
 	if ok := w.Send(frame); !ok {
 		t.Fatal("Send returned false before disconnect")
 	}
 
-	// Frame should reach the mock transport via forwardOutput.
+	// Frame should reach the mock transport via forwardOutput (already in target format).
 	select {
 	case got := <-mt.audioOut:
 		if string(got.Data) != string(frame.Data) {
@@ -401,7 +401,7 @@ func TestOutputWriter_SendAfterDisconnect(t *testing.T) {
 	}
 
 	// Must not panic.
-	frame := audio.AudioFrame{Data: []byte{0xFF}, SampleRate: 48000, Channels: 1}
+	frame := audio.AudioFrame{Data: []byte{0xFF, 0x00}, SampleRate: 48000, Channels: 1}
 	if ok := w.Send(frame); ok {
 		t.Error("Send returned true after disconnect; want false (frame should be dropped)")
 	}
@@ -441,7 +441,7 @@ func TestOutputStream_StillWorksAfterOutputWriterAdded(t *testing.T) {
 	mt := conn.peers["ow-compat-user"].transport.(*mockTransport)
 	conn.mu.RUnlock()
 
-	frame := audio.AudioFrame{Data: []byte{0x42}, SampleRate: 48000, Channels: 1}
+	frame := audio.AudioFrame{Data: []byte{0x42, 0x00, 0x42, 0x00}, SampleRate: 48000, Channels: 2}
 	ch <- frame
 
 	select {

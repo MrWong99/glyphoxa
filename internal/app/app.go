@@ -386,9 +386,12 @@ func (a *App) Run(ctx context.Context) error {
 // startAudioLoop reads audio from each participant and routes it through
 // VAD → STT → orchestrator → agent.
 func (a *App) startAudioLoop(ctx context.Context, conn audio.Connection) {
+	// Target format for STT/VAD consumers: 16 kHz mono.
+	sttFormat := audio.Format{SampleRate: 16000, Channels: 1}
+
 	// Handle participants already present.
 	for userID, inputCh := range conn.InputStreams() {
-		go a.processParticipant(ctx, userID, inputCh)
+		go a.processParticipant(ctx, userID, audio.ConvertStream(inputCh, sttFormat))
 	}
 
 	// Handle new participants joining.
@@ -396,7 +399,7 @@ func (a *App) startAudioLoop(ctx context.Context, conn audio.Connection) {
 		if ev.Type == audio.EventJoin {
 			streams := conn.InputStreams()
 			if ch, ok := streams[ev.UserID]; ok {
-				go a.processParticipant(ctx, ev.UserID, ch)
+				go a.processParticipant(ctx, ev.UserID, audio.ConvertStream(ch, sttFormat))
 			}
 		}
 	})
@@ -417,7 +420,7 @@ func (a *App) processParticipant(ctx context.Context, userID string, inputCh <-c
 	var sttSession stt.SessionHandle
 	if a.providers.STT != nil {
 		sess, err := a.providers.STT.StartStream(ctx, stt.StreamConfig{
-			SampleRate: 48000,
+			SampleRate: 16000,
 			Channels:   1,
 			Language:   "en-US",
 		})
@@ -433,7 +436,7 @@ func (a *App) processParticipant(ctx context.Context, userID string, inputCh <-c
 	var vadSession vad.SessionHandle
 	if a.providers.VAD != nil {
 		sess, err := a.providers.VAD.NewSession(vad.Config{
-			SampleRate:       48000,
+			SampleRate:       16000,
 			FrameSizeMs:      20,
 			SpeechThreshold:  0.5,
 			SilenceThreshold: 0.35,

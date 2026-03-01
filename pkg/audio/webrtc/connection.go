@@ -247,9 +247,10 @@ func (c *Connection) readPeerInput(p *peer) {
 	}
 }
 
-// forwardOutput reads NPC audio frames from the output channel and sends them
-// to all currently connected peers via their transports.
+// forwardOutput reads NPC audio frames from the output channel, converts them
+// to the platform's target format, and sends them to all connected peers.
 func (c *Connection) forwardOutput() {
+	conv := audio.FormatConverter{Target: audio.Format{SampleRate: c.sampleRate, Channels: 2}}
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -258,6 +259,8 @@ func (c *Connection) forwardOutput() {
 			if !ok {
 				return
 			}
+			frame = conv.Convert(frame)
+
 			// Snapshot peers under read lock to minimise contention.
 			c.mu.RLock()
 			peers := make([]*peer, 0, len(c.peers))

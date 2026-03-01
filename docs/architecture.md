@@ -16,50 +16,50 @@ Written in Go for native concurrency, every pipeline stage runs as a goroutine c
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                          Audio Transport Layer                            │
+│                          Audio Transport Layer                             │
 │                    (Discord / WebRTC / Custom Platform)                    │
 ├───────────────────────┬────────────────────────────────────────────────────┤
-│   Audio In            │                Audio Out                          │
-│   ┌───────────────┐   │   ┌──────────────────────────────────────────┐    │
-│   │ Per-Speaker    │   │   │ Audio Mixer                              │    │
-│   │ Streams        │   │   │  - Priority queue (addressed NPC first)  │    │
-│   │ (chan AudioFr) │   │   │  - Barge-in detection (truncate on VAD)  │    │
-│   └───────┬───────┘   │   │  - Natural pacing (200-500ms gaps)       │    │
-│           │           │   └──────────────────────┬───────────────────┘    │
-├───────────┼───────────┴──────────────────────────┼───────────────────────┤
-│           │     Agent Orchestrator + Router       │                       │
-│           │   ┌─────────────────────────────┐     │                       │
-│           │   │  Address Detection          │     │                       │
-│           │   │  Turn-Taking / Barge-in     │     │                       │
-│           │   │  DM Commands & Puppet Mode  │     │                       │
-│           │   └──────────┬──────────────────┘     │                       │
-│           │              │                        │                       │
-│    ┌──────┴──────┐ ┌─────┴──────┐ ┌──────────┐   │                       │
-│    │   NPC #1    │ │   NPC #2   │ │  NPC #3  │ ...                       │
-│    │  (Agent)    │ │  (Agent)   │ │ (Agent)  │   │                       │
-│    └──────┬──────┘ └─────┬──────┘ └────┬─────┘   │                       │
-├───────────┴──────────────┴─────────────┴─────────┴───────────────────────┤
-│                          Voice Engines                                    │
-│                                                                          │
-│  ┌─────────────────────────┐ ┌──────────────┐ ┌───────────────────────┐  │
-│  │  Cascaded Engine        │ │  S2S Engine   │ │  Sentence Cascade     │  │
-│  │  STT → LLM → TTS       │ │  Gemini Live  │ │  ⚠️ Experimental      │  │
-│  │  (full pipeline)        │ │  OpenAI RT    │ │  Fast+Strong models   │  │
-│  └─────────────────────────┘ └──────────────┘ └───────────────────────┘  │
-│                                                                          │
-├──────────────────────────────────┬───────────────────────────────────────┤
-│   Memory Subsystem               │    MCP Tool Execution                 │
-│                                  │                                       │
-│  ┌───────┐ ┌────────┐ ┌──────┐  │  ┌───────┐ ┌───────┐ ┌────────┐      │
-│  │  L1   │ │   L2   │ │  L3  │  │  │ Dice  │ │ Rules │ │ Memory │      │
-│  │Session│ │Semantic│ │Graph │  │  │Roller │ │Lookup │ │ Query  │ ...  │
-│  │  Log  │ │ Index  │ │(KG)  │  │  └───────┘ └───────┘ └────────┘      │
-│  └───────┘ └────────┘ └──────┘  │  Budget Tiers: instant/fast/standard  │
-│  ─── all on PostgreSQL ───────  │                                       │
-├──────────────────────────────────┴───────────────────────────────────────┤
-│   Observability (OpenTelemetry)  │  Resilience (Fallback + Circuit Break)│
-│   Metrics · Traces · Middleware  │  LLM / STT / TTS provider failover   │
-└──────────────────────────────────────────────────────────────────────────┘
+│   Audio In            │                Audio Out                           │
+│   ┌───────────────┐   │   ┌───────────────────────────────────────────┐    │
+│   │ Per-Speaker   │   │   │ Audio Mixer                               │    │
+│   │ Streams       │   │   │  - Priority queue (addressed NPC first)   │    │
+│   │ (chan AudioFr)│   │   │  - Barge-in detection (truncate on VAD)   │    │
+│   └───────┬───────┘   │   │  - Natural pacing (200-500ms gaps)        │    │
+│           │           │   └──────────────────────┬────────────────────┘    │
+├───────────┼───────────┴──────────────────────────┼─────────────────────────┤
+│           │     Agent Orchestrator + Router      │                         │
+│           │   ┌─────────────────────────────┐    │                         │
+│           │   │  Address Detection          │    │                         │
+│           │   │  Turn-Taking / Barge-in     │    │                         │
+│           │   │  DM Commands & Puppet Mode  │    │                         │
+│           │   └──────────┬──────────────────┘                              │
+│           │              │                       │                         │
+│    ┌──────┴──────┐ ┌─────┴──────┐ ┌──────────┐   │                         │
+│    │   NPC #1    │ │   NPC #2   │ │  NPC #3  │ ...                         │
+│    │  (Agent)    │ │  (Agent)   │ │ (Agent)  │   │                         │
+│    └──────┬──────┘ └─────┬──────┘ └────┬─────┘   │                         │
+├───────────┴──────────────┴─────────────┴─────────┴─────────────────────────┤
+│                          Voice Engines                                     │
+│                                                                            │
+│  ┌─────────────────────────┐ ┌──────────────┐ ┌───────────────────────┐    │
+│  │  Cascaded Engine        │ │  S2S Engine  │ │  Sentence Cascade     │    │
+│  │  STT → LLM → TTS        │ │  Gemini Live │ │  ⚠️ Experimental      │    │
+│  │  (full pipeline)        │ │  OpenAI RT   │ │  Fast+Strong models   │    │
+│  └─────────────────────────┘ └──────────────┘ └───────────────────────┘    │
+│                                                                            │
+├──────────────────────────────────┬─────────────────────────────────────────┤
+│   Memory Subsystem               │    MCP Tool Execution                   │
+│                                  │                                         │
+│  ┌───────┐ ┌────────┐ ┌──────┐   │  ┌───────┐ ┌───────┐ ┌────────┐         │
+│  │  L1   │ │   L2   │ │  L3  │   │  │ Dice  │ │ Rules │ │ Memory │         │
+│  │Session│ │Semantic│ │Graph │   │  │Roller │ │Lookup │ │ Query  │ ...     │
+│  │  Log  │ │ Index  │ │(KG)  │   │  └───────┘ └───────┘ └────────┘         │
+│  └───────┘ └────────┘ └──────┘   │  Budget Tiers: instant/fast/standard    │
+│  ─── all on PostgreSQL ───────   │                                         │
+├──────────────────────────────────┴─────────────────────────────────────────┤
+│   Observability (OpenTelemetry)  │  Resilience (Fallback + Circuit Break)  │
+│   Metrics · Traces · Middleware  │  LLM / STT / TTS provider failover      │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -237,9 +237,9 @@ Sequential:  VAD(100) + STT(300) + LLM(500) + TTS(200) + Transport(50) = 1150ms 
                                                                           (often 1500-2000ms)
 
 Pipelined:   VAD(100) + STT(200) ──┐
-                                    ├── LLM TTFT(400) ──┐
-             Pre-fetch(parallel) ──┘                     ├── TTS TTFB(100) + Transport(50)
-                                                         └── Total: ~850ms typical
+                                   ├── LLM TTFT(400) ──┐
+             Pre-fetch(parallel) ──┘                   ├── TTS TTFB(100) + Transport(50)
+                                                       └── Total: ~850ms typical
 ```
 
 Go's channel-based concurrency makes this natural: each stage is a goroutine reading from an input channel and writing to an output channel.

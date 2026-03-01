@@ -137,7 +137,7 @@ type Provider struct {
 	serverURL  string
 	language   string
 	httpClient *http.Client
-	apiMode APIMode
+	apiMode    APIMode
 }
 
 // New creates a new Coqui Provider that targets the TTS server at serverURL

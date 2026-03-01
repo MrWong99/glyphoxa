@@ -291,8 +291,6 @@ func registerBuiltinProviders(reg *config.Registry) {
 		if mode := optString(entry.Options, "api_mode"); mode != "" {
 			opts = append(opts, coqui.WithAPIMode(coqui.APIMode(mode)))
 		}
-		// Resample TTS output to 48 kHz for Discord/WebRTC audio pipelines.
-		opts = append(opts, coqui.WithOutputSampleRate(48000))
 		return coqui.New(entry.BaseURL, opts...)
 	})
 
