@@ -65,6 +65,17 @@ func WithTurnTimeout(d time.Duration) Option {
 	}
 }
 
+// WithTTSFormat sets the expected audio output format for the S2S provider.
+// sampleRate is in Hz (e.g., 24000 for OpenAI Realtime / Gemini).
+// channels is the number of audio channels (1 = mono, 2 = stereo).
+// If not called, defaults are 24000 Hz mono.
+func WithTTSFormat(sampleRate, channels int) Option {
+	return func(e *Engine) {
+		e.ttsSampleRate = sampleRate
+		e.ttsChannels = channels
+	}
+}
+
 // Engine is a [engine.VoiceEngine] implementation that wraps an [providers2s.Provider].
 // It manages session lifecycle, fans-out transcripts, and bridges per-turn audio
 // channels from the continuous S2S audio stream.
@@ -76,6 +87,15 @@ type Engine struct {
 	sessionCfg    providers2s.SessionConfig
 	transcriptBuf int
 	turnTimeout   time.Duration
+
+	// ttsSampleRate is the sample rate in Hz of PCM audio produced by the S2S
+	// provider (e.g., 24000 for OpenAI Realtime, Gemini). Defaults to 24000 if
+	// not set via [WithTTSFormat].
+	ttsSampleRate int
+
+	// ttsChannels is the number of audio channels produced by the S2S provider
+	// (1 = mono, 2 = stereo). Defaults to 1 if not set via [WithTTSFormat].
+	ttsChannels int
 
 	mu          sync.Mutex
 	session     providers2s.SessionHandle
@@ -107,6 +127,13 @@ func New(provider providers2s.Provider, cfg providers2s.SessionConfig, opts ...O
 	}
 	for _, opt := range opts {
 		opt(e)
+	}
+	// Apply defaults for TTS format if not set by options.
+	if e.ttsSampleRate == 0 {
+		e.ttsSampleRate = 24000
+	}
+	if e.ttsChannels == 0 {
+		e.ttsChannels = 1
 	}
 	e.transcriptCh = make(chan memory.TranscriptEntry, e.transcriptBuf)
 	return e
@@ -205,7 +232,9 @@ func (e *Engine) Process(ctx context.Context, input audio.AudioFrame, prompt eng
 	// Create a per-turn audio channel and wire it to the session's output.
 	audioCh := make(chan []byte, defaultAudioBuf)
 	resp := &engine.Response{
-		Audio: audioCh,
+		Audio:      audioCh,
+		SampleRate: e.ttsSampleRate,
+		Channels:   e.ttsChannels,
 	}
 
 	e.wg.Go(func() {

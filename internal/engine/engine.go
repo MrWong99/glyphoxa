@@ -84,6 +84,14 @@ type Response struct {
 	// the audio, to avoid blocking the engine's internal pipeline.
 	Audio <-chan []byte
 
+	// SampleRate is the sample rate in Hz of the PCM data on the Audio channel
+	// (e.g., 22050, 24000, 48000). Set by the engine based on its TTS provider
+	// configuration.
+	SampleRate int
+
+	// Channels is the number of audio channels (1 = mono, 2 = stereo).
+	Channels int
+
 	// ToolCalls lists any tool invocations the LLM requested during generation.
 	// The orchestrator is responsible for executing them and, if needed, feeding
 	// results back to the engine via a follow-up [VoiceEngine.Process] call.

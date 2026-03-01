@@ -65,6 +65,15 @@ type Engine struct {
 	openerSuffix  string
 	transcriptBuf int
 
+	// ttsSampleRate is the sample rate in Hz of PCM audio produced by the TTS
+	// provider (e.g., 22050 for Coqui XTTS, 16000 for ElevenLabs). Defaults to
+	// 22050 if not set via [WithTTSFormat].
+	ttsSampleRate int
+
+	// ttsChannels is the number of audio channels produced by the TTS provider
+	// (1 = mono, 2 = stereo). Defaults to 1 if not set via [WithTTSFormat].
+	ttsChannels int
+
 	mu            sync.Mutex
 	toolHandler   func(name, args string) (string, error)
 	tools         []llm.ToolDefinition
@@ -104,6 +113,17 @@ func WithOpenerPromptSuffix(s string) Option {
 	return func(e *Engine) { e.openerSuffix = s }
 }
 
+// WithTTSFormat sets the expected TTS output format for the audio pipeline.
+// sampleRate is in Hz (e.g., 22050 for Coqui XTTS, 16000 for ElevenLabs).
+// channels is the number of audio channels (1 = mono, 2 = stereo).
+// If not called, defaults are 22050 Hz mono.
+func WithTTSFormat(sampleRate, channels int) Option {
+	return func(e *Engine) {
+		e.ttsSampleRate = sampleRate
+		e.ttsChannels = channels
+	}
+}
+
 // New constructs a cascade Engine backed by the given providers and voice profile.
 // Options are applied after the engine is initialised with its defaults.
 func New(fastLLM, strongLLM llm.Provider, ttsP tts.Provider, voice tts.VoiceProfile, opts ...Option) *Engine {
@@ -118,6 +138,13 @@ func New(fastLLM, strongLLM llm.Provider, ttsP tts.Provider, voice tts.VoiceProf
 	}
 	for _, o := range opts {
 		o(e)
+	}
+	// Apply defaults for TTS format if not set by options.
+	if e.ttsSampleRate == 0 {
+		e.ttsSampleRate = 22050
+	}
+	if e.ttsChannels == 0 {
+		e.ttsChannels = 1
 	}
 	// Create transcript channel after options so WithTranscriptBuffer takes effect.
 	e.transcriptCh = make(chan memory.TranscriptEntry, e.transcriptBuf)
@@ -175,7 +202,7 @@ func (e *Engine) Process(ctx context.Context, _ audio.AudioFrame, prompt engine.
 		if err != nil {
 			return nil, fmt.Errorf("cascade: TTS start failed: %w", err)
 		}
-		return &engine.Response{Text: opener, Audio: audioCh}, nil
+		return &engine.Response{Text: opener, Audio: audioCh, SampleRate: e.ttsSampleRate, Channels: e.ttsChannels}, nil
 	}
 
 	// ── Stage 2b: Dual-model path ─────────────────────────────────────────────
@@ -188,7 +215,7 @@ func (e *Engine) Process(ctx context.Context, _ audio.AudioFrame, prompt engine.
 	}
 
 	strongReq := e.buildStrongPrompt(prompt, tools, opener)
-	resp := &engine.Response{Text: opener, Audio: audioCh}
+	resp := &engine.Response{Text: opener, Audio: audioCh, SampleRate: e.ttsSampleRate, Channels: e.ttsChannels}
 
 	// Background goroutine: send opener → strong model → close textCh.
 	e.wg.Go(func() {

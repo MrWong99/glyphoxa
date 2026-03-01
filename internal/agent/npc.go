@@ -254,9 +254,11 @@ func (a *liveAgent) HandleUtterance(ctx context.Context, speaker string, transcr
 	// 5. Enqueue response audio to mixer (if set), otherwise drain.
 	if a.mixer != nil && resp.Audio != nil {
 		seg := &audio.AudioSegment{
-			NPCID:    a.id,
-			Audio:    resp.Audio,
-			Priority: defaultAudioPriority,
+			NPCID:      a.id,
+			Audio:      resp.Audio,
+			SampleRate: resp.SampleRate,
+			Channels:   resp.Channels,
+			Priority:   defaultAudioPriority,
 		}
 		a.mixer.Enqueue(seg, defaultAudioPriority)
 	} else if resp.Audio != nil {
