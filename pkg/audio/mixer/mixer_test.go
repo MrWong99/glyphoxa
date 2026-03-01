@@ -44,14 +44,14 @@ func makeOpenSegment(npcID string, priority int) (*audio.AudioSegment, chan []by
 // collectOutput creates an output callback that appends received chunks to a
 // slice protected by a mutex. Returns the callback and a function to retrieve
 // the collected chunks.
-func collectOutput() (func([]byte), func() [][]byte) {
+func collectOutput() (func(audio.AudioFrame), func() [][]byte) {
 	var mu sync.Mutex
 	var chunks [][]byte
-	output := func(data []byte) {
+	output := func(frame audio.AudioFrame) {
 		mu.Lock()
 		defer mu.Unlock()
-		cp := make([]byte, len(data))
-		copy(cp, data)
+		cp := make([]byte, len(frame.Data))
+		copy(cp, frame.Data)
 		chunks = append(chunks, cp)
 	}
 	get := func() [][]byte {
@@ -341,8 +341,10 @@ func TestCloseStopsPlayback(t *testing.T) {
 	// Enqueue a segment with an open channel.
 	_, sendCh := makeOpenSegment("npc-1", 1)
 	seg := &audio.AudioSegment{
-		NPCID: "npc-1",
-		Audio: sendCh,
+		NPCID:      "npc-1",
+		Audio:      sendCh,
+		SampleRate: 48000,
+		Channels:   1,
 	}
 	m.Enqueue(seg, 1)
 	sendCh <- []byte("before-close")
@@ -376,7 +378,7 @@ func TestConcurrentEnqueue(t *testing.T) {
 	t.Parallel()
 
 	var received atomic.Int64
-	output := func([]byte) {
+	output := func(audio.AudioFrame) {
 		received.Add(1)
 	}
 	m := mixer.New(output, mixer.WithGap(0))
@@ -495,4 +497,60 @@ func TestHighPriorityPlaysFirst(t *testing.T) {
 	if highIdx > lowIdx {
 		t.Errorf("high-priority chunk (idx %d) should play before low-priority (idx %d)", highIdx, lowIdx)
 	}
+}
+
+func TestMixer_OutputEmitsAudioFrame(t *testing.T) {
+	var got []audio.AudioFrame
+	var mu sync.Mutex
+	m := mixer.New(func(frame audio.AudioFrame) {
+		mu.Lock()
+		cp := make([]byte, len(frame.Data))
+		copy(cp, frame.Data)
+		got = append(got, audio.AudioFrame{
+			Data:       cp,
+			SampleRate: frame.SampleRate,
+			Channels:   frame.Channels,
+		})
+		mu.Unlock()
+	}, mixer.WithGap(0))
+	defer m.Close()
+
+	seg := makeSegment("npc", 1, []byte{1, 2})
+	seg.SampleRate = 22050
+	seg.Channels = 1
+	m.Enqueue(seg, 1)
+
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(got) == 0 {
+		t.Fatal("expected at least one AudioFrame")
+	}
+	if got[0].SampleRate != 22050 {
+		t.Errorf("SampleRate = %d, want 22050", got[0].SampleRate)
+	}
+	if got[0].Channels != 1 {
+		t.Errorf("Channels = %d, want 1", got[0].Channels)
+	}
+}
+
+func TestMixer_RejectsInvalidFormat(t *testing.T) {
+	output, _ := collectOutput()
+	m := mixer.New(output, mixer.WithGap(0))
+	defer m.Close()
+
+	ch := make(chan []byte, 1)
+	ch <- []byte{1, 2}
+	close(ch)
+	seg := &audio.AudioSegment{
+		NPCID:      "npc",
+		Audio:      ch,
+		SampleRate: 0, // invalid
+		Channels:   1,
+		Priority:   1,
+	}
+	m.Enqueue(seg, 1)
+	time.Sleep(50 * time.Millisecond)
+	// Segment should be rejected and audio drained (no panic, no output)
 }

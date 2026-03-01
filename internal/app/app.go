@@ -254,7 +254,7 @@ func (a *App) initMixer() {
 	}
 	// Output callback is wired to the audio connection in Run.
 	// For now create with a no-op output; Run replaces it.
-	pm := audiomixer.New(func([]byte) {})
+	pm := audiomixer.New(func(audio.AudioFrame) {})
 	a.mixer = pm
 	a.closers = append(a.closers, pm.Close)
 }

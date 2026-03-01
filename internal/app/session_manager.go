@@ -127,12 +127,8 @@ func (sm *SessionManager) Start(ctx context.Context, channelID string, dmUserID 
 	outStream := conn.OutputStream()
 	var mixer audio.Mixer
 	var closers []func() error
-	pm := audiomixer.New(func(pcm []byte) {
-		outStream <- audio.AudioFrame{
-			Data:       pcm,
-			SampleRate: 48000,
-			Channels:   1,
-		}
+	pm := audiomixer.New(func(frame audio.AudioFrame) {
+		outStream <- frame
 	})
 	mixer = pm
 	closers = append(closers, pm.Close)

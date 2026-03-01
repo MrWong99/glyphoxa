@@ -2,6 +2,7 @@ package mixer
 
 import (
 	"container/heap"
+	"log/slog"
 	"math/rand/v2"
 	"sync"
 	"time"
@@ -52,7 +53,7 @@ func WithQueueCapacity(n int) Option {
 //
 // All exported methods are safe for concurrent use.
 type PriorityMixer struct {
-	output func([]byte) // callback that receives audio chunks for playback
+	output func(audio.AudioFrame) // callback that receives audio frames for playback
 
 	mu             sync.Mutex
 	queue          segmentHeap
@@ -76,7 +77,7 @@ type PriorityMixer struct {
 //
 // Call [PriorityMixer.Close] to stop the background goroutine and release
 // resources.
-func New(output func([]byte), opts ...Option) *PriorityMixer {
+func New(output func(audio.AudioFrame), opts ...Option) *PriorityMixer {
 	m := &PriorityMixer{
 		output: output,
 		queue:  make(segmentHeap, 0, defaultQueueCap),
@@ -104,6 +105,16 @@ func (m *PriorityMixer) Enqueue(segment *audio.AudioSegment, priority int) {
 	defer m.mu.Unlock()
 
 	if m.closed {
+		return
+	}
+
+	if segment.SampleRate <= 0 || segment.Channels <= 0 {
+		slog.Error("mixer: rejecting segment with invalid format",
+			"npcID", segment.NPCID,
+			"sampleRate", segment.SampleRate,
+			"channels", segment.Channels,
+		)
+		go audio.Drain(segment.Audio)
 		return
 	}
 
@@ -325,7 +336,11 @@ func (m *PriorityMixer) play(seg *audio.AudioSegment, cancel chan struct{}) {
 			if !ok {
 				return // segment finished naturally
 			}
-			m.output(chunk)
+			m.output(audio.AudioFrame{
+				Data:       chunk,
+				SampleRate: seg.SampleRate,
+				Channels:   seg.Channels,
+			})
 		}
 	}
 }
