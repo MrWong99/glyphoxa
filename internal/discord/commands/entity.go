@@ -438,11 +438,6 @@ func (ec *EntityCommands) handleImport(s *discordgo.Session, i *discordgo.Intera
 	discord.FollowUp(s, i, fmt.Sprintf("Import complete. **%d** entities imported from `%s`.", count, attachment.Filename))
 }
 
-// boolPtr returns a pointer to b. Used for discordgo struct fields that take *bool.
-//
-//go:fix inline
-func boolPtr(b bool) *bool { return new(b) }
-
 // subcommandOptions extracts the options from the first subcommand in an
 // interaction's application command data. Returns nil if no subcommand exists.
 func subcommandOptions(i *discordgo.InteractionCreate) []*discordgo.ApplicationCommandInteractionDataOption {
