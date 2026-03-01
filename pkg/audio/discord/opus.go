@@ -83,18 +83,3 @@ func bytesToInt16s(b []byte) []int16 {
 	}
 	return pcm
 }
-
-// monoToStereo duplicates each 16-bit mono sample into a stereo pair.
-// Input must be little-endian int16 PCM (2 bytes per sample).
-func monoToStereo(pcm []byte) []byte {
-	out := make([]byte, len(pcm)*2)
-	for i := 0; i+1 < len(pcm); i += 2 {
-		lo, hi := pcm[i], pcm[i+1]
-		j := i * 2
-		out[j] = lo
-		out[j+1] = hi
-		out[j+2] = lo
-		out[j+3] = hi
-	}
-	return out
-}

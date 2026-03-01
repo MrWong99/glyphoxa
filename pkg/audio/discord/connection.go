@@ -200,15 +200,18 @@ func (c *Connection) recvLoop() {
 	}
 }
 
-// sendLoop reads PCM AudioFrames from the output channel, buffers them,
-// converts mono to stereo, extracts exact Opus frame-sized chunks, encodes
-// them to Opus, and sends the encoded data via the Discord voice connection.
+// sendLoop reads PCM AudioFrames from the output channel, converts them to
+// Discord's target format (48 kHz stereo), extracts exact Opus frame-sized
+// chunks, encodes them to Opus, and sends the encoded data via the Discord
+// voice connection.
 func (c *Connection) sendLoop() {
 	enc, err := newOpusEncoder()
 	if err != nil {
 		slog.Error("discord: failed to create opus encoder", "error", err)
 		return
 	}
+
+	conv := audio.FormatConverter{Target: audio.Format{SampleRate: opusSampleRate, Channels: opusChannels}}
 
 	// Signal speaking when we start sending audio.
 	speakingSet := false
@@ -236,11 +239,9 @@ func (c *Connection) sendLoop() {
 				speakingSet = true
 			}
 
-			// Convert mono PCM to stereo by duplicating each sample.
+			// Convert to Discord's target format (48 kHz stereo).
+			frame = conv.Convert(frame)
 			data := frame.Data
-			if frame.Channels <= 1 {
-				data = monoToStereo(data)
-			}
 
 			buf = append(buf, data...)
 
