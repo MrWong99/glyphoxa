@@ -129,15 +129,6 @@ func WithAPIMode(mode APIMode) Option {
 	}
 }
 
-// WithOutputSampleRate configures the provider to resample synthesised PCM to
-// the given sample rate (e.g., 48000 for Discord). When set to 0 (default),
-// no resampling is performed and PCM is emitted at the model's native rate.
-func WithOutputSampleRate(rate int) Option {
-	return func(p *Provider) {
-		p.outputRate = rate
-	}
-}
-
 // ---- Provider ----
 
 // Provider implements tts.Provider backed by a locally-running Coqui TTS server.
@@ -146,8 +137,7 @@ type Provider struct {
 	serverURL  string
 	language   string
 	httpClient *http.Client
-	apiMode    APIMode
-	outputRate int // target sample rate; 0 = no resampling
+	apiMode APIMode
 }
 
 // New creates a new Coqui Provider that targets the TTS server at serverURL
@@ -396,9 +386,6 @@ func (p *Provider) synthesizeXTTS(ctx context.Context, sentence string, voice tt
 	}
 
 	pcm := wav[info.DataOffset:]
-	if p.outputRate > 0 && info.SampleRate != p.outputRate && info.Channels == 1 {
-		pcm = resampleMono16(pcm, info.SampleRate, p.outputRate)
-	}
 	return pcm, nil
 }
 
@@ -442,9 +429,6 @@ func (p *Provider) synthesizeStandard(ctx context.Context, sentence string, voic
 	}
 
 	pcm := wav[info.DataOffset:]
-	if p.outputRate > 0 && info.SampleRate != p.outputRate && info.Channels == 1 {
-		pcm = resampleMono16(pcm, info.SampleRate, p.outputRate)
-	}
 	return pcm, nil
 }
 
@@ -646,44 +630,6 @@ func (p *Provider) CloneVoice(ctx context.Context, samples [][]byte) (*tts.Voice
 			"type": "cloned",
 		},
 	}, nil
-}
-
-// ---- resampling ----
-
-// resampleMono16 resamples 16-bit mono PCM from srcRate to dstRate using linear
-// interpolation. The input must be little-endian int16 samples. If srcRate ==
-// dstRate, the input is returned unchanged.
-func resampleMono16(pcm []byte, srcRate, dstRate int) []byte {
-	if srcRate == dstRate || len(pcm) < 2 {
-		return pcm
-	}
-	srcSamples := len(pcm) / 2
-	dstSamples := int(int64(srcSamples) * int64(dstRate) / int64(srcRate))
-	if dstSamples == 0 {
-		return nil
-	}
-
-	out := make([]byte, dstSamples*2)
-	ratio := float64(srcRate) / float64(dstRate)
-
-	for i := range dstSamples {
-		srcPos := float64(i) * ratio
-		srcIdx := int(srcPos)
-		frac := srcPos - float64(srcIdx)
-
-		s0 := int16(pcm[srcIdx*2]) | int16(pcm[srcIdx*2+1])<<8
-		var s1 int16
-		if srcIdx+1 < srcSamples {
-			s1 = int16(pcm[(srcIdx+1)*2]) | int16(pcm[(srcIdx+1)*2+1])<<8
-		} else {
-			s1 = s0
-		}
-
-		interpolated := int16(float64(s0)*(1-frac) + float64(s1)*frac)
-		out[i*2] = byte(interpolated)
-		out[i*2+1] = byte(interpolated >> 8)
-	}
-	return out
 }
 
 // ---- helpers ----
