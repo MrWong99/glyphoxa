@@ -73,7 +73,6 @@ func New(_ context.Context, cfg Config) (*Bot, error) {
 		b.router.Handle(s, i)
 	})
 
-	slog.Info("discord bot connected", "guild", cfg.GuildID)
 	return b, nil
 }
 

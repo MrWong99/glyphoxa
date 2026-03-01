@@ -345,26 +345,29 @@ func buildEngine(providers *Providers, npc config.NPCConfig) (engine.VoiceEngine
 	}
 }
 
+// ─── Accessors ───────────────────────────────────────────────────────────────
+
+// SessionStore returns the session transcript store. May be nil if memory
+// is not configured.
+func (a *App) SessionStore() memory.SessionStore { return a.sessions }
+
+// KnowledgeGraph returns the knowledge graph. May be nil if memory is not
+// configured.
+func (a *App) KnowledgeGraph() memory.KnowledgeGraph { return a.graph }
+
+// MCPHost returns the MCP host. May be nil if no MCP servers are configured.
+func (a *App) MCPHost() mcp.Host { return a.mcpHost }
+
+// EntityStore returns the entity store.
+func (a *App) EntityStore() entity.Store { return a.entities }
+
 // ─── Run ─────────────────────────────────────────────────────────────────────
 
-// Run starts the main voice processing loop and blocks until ctx is cancelled.
+// Run starts the main processing loop and blocks until ctx is cancelled.
 //
-// Run connects to the audio platform, starts per-participant processing
-// goroutines, and records transcripts. When ctx is done, Run returns
-// context.Canceled (or the underlying cause).
+// Audio connections are managed by the [SessionManager] (triggered via
+// the /session start slash command), not by Run directly.
 func (a *App) Run(ctx context.Context) error {
-	// ── Connect to audio platform ────────────────────────────────────────
-	if a.providers.Audio != nil {
-		channelID := a.cfg.Server.ListenAddr
-		conn, err := a.providers.Audio.Connect(ctx, channelID)
-		if err != nil {
-			return fmt.Errorf("app: connect audio platform: %w", err)
-		}
-		a.conn = conn
-
-		a.startAudioLoop(ctx, conn)
-	}
-
 	// ── Start transcript recording for each agent ────────────────────────
 	var wg sync.WaitGroup
 	for _, ag := range a.agents {

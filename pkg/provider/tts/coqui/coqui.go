@@ -129,6 +129,15 @@ func WithAPIMode(mode APIMode) Option {
 	}
 }
 
+// WithOutputSampleRate configures the provider to resample synthesised PCM to
+// the given sample rate (e.g., 48000 for Discord). When set to 0 (default),
+// no resampling is performed and PCM is emitted at the model's native rate.
+func WithOutputSampleRate(rate int) Option {
+	return func(p *Provider) {
+		p.outputRate = rate
+	}
+}
+
 // ---- Provider ----
 
 // Provider implements tts.Provider backed by a locally-running Coqui TTS server.
@@ -138,6 +147,7 @@ type Provider struct {
 	language   string
 	httpClient *http.Client
 	apiMode    APIMode
+	outputRate int // target sample rate; 0 = no resampling
 }
 
 // New creates a new Coqui Provider that targets the TTS server at serverURL
@@ -209,8 +219,10 @@ type detailsResponse struct {
 // The returned channel is closed when all text has been synthesised or when ctx
 // is cancelled. The caller must drain the channel to prevent goroutine leaks.
 func (p *Provider) SynthesizeStream(ctx context.Context, text <-chan string, voice tts.VoiceProfile) (<-chan []byte, error) {
-	if voice.ID == "" {
-		return nil, errors.New("coqui: voice.ID must not be empty")
+	// XTTS mode always requires a voice ID (speaker_wav). Standard mode works
+	// without one for single-speaker models, so only enforce the check for XTTS.
+	if voice.ID == "" && p.apiMode == APIModeXTTS {
+		return nil, errors.New("coqui: voice.ID must not be empty (required for XTTS mode)")
 	}
 
 	audioCh := make(chan []byte, audioChanBuf)
@@ -378,12 +390,16 @@ func (p *Provider) synthesizeXTTS(ctx context.Context, sentence string, voice tt
 		return nil, fmt.Errorf("coqui: read WAV response: %w", err)
 	}
 
-	offset, err := findWAVDataOffset(wav)
+	info, err := parseWAV(wav)
 	if err != nil {
 		return nil, err
 	}
 
-	return wav[offset:], nil
+	pcm := wav[info.DataOffset:]
+	if p.outputRate > 0 && info.SampleRate != p.outputRate && info.Channels == 1 {
+		pcm = resampleMono16(pcm, info.SampleRate, p.outputRate)
+	}
+	return pcm, nil
 }
 
 // synthesizeStandard performs a single GET /api/tts request (standard server mode)
@@ -420,12 +436,16 @@ func (p *Provider) synthesizeStandard(ctx context.Context, sentence string, voic
 		return nil, fmt.Errorf("coqui: read WAV response: %w", err)
 	}
 
-	offset, err := findWAVDataOffset(wav)
+	info, err := parseWAV(wav)
 	if err != nil {
 		return nil, err
 	}
 
-	return wav[offset:], nil
+	pcm := wav[info.DataOffset:]
+	if p.outputRate > 0 && info.SampleRate != p.outputRate && info.Channels == 1 {
+		pcm = resampleMono16(pcm, info.SampleRate, p.outputRate)
+	}
+	return pcm, nil
 }
 
 // ---- ListVoices ----
@@ -628,6 +648,44 @@ func (p *Provider) CloneVoice(ctx context.Context, samples [][]byte) (*tts.Voice
 	}, nil
 }
 
+// ---- resampling ----
+
+// resampleMono16 resamples 16-bit mono PCM from srcRate to dstRate using linear
+// interpolation. The input must be little-endian int16 samples. If srcRate ==
+// dstRate, the input is returned unchanged.
+func resampleMono16(pcm []byte, srcRate, dstRate int) []byte {
+	if srcRate == dstRate || len(pcm) < 2 {
+		return pcm
+	}
+	srcSamples := len(pcm) / 2
+	dstSamples := int(int64(srcSamples) * int64(dstRate) / int64(srcRate))
+	if dstSamples == 0 {
+		return nil
+	}
+
+	out := make([]byte, dstSamples*2)
+	ratio := float64(srcRate) / float64(dstRate)
+
+	for i := 0; i < dstSamples; i++ {
+		srcPos := float64(i) * ratio
+		srcIdx := int(srcPos)
+		frac := srcPos - float64(srcIdx)
+
+		s0 := int16(pcm[srcIdx*2]) | int16(pcm[srcIdx*2+1])<<8
+		var s1 int16
+		if srcIdx+1 < srcSamples {
+			s1 = int16(pcm[(srcIdx+1)*2]) | int16(pcm[(srcIdx+1)*2+1])<<8
+		} else {
+			s1 = s0
+		}
+
+		interpolated := int16(float64(s0)*(1-frac) + float64(s1)*frac)
+		out[i*2] = byte(interpolated)
+		out[i*2+1] = byte(interpolated >> 8)
+	}
+	return out
+}
+
 // ---- helpers ----
 
 // findSentenceBoundary returns the index of the first sentence-ending character
@@ -650,38 +708,72 @@ func findSentenceBoundary(s string) int {
 	return -1
 }
 
-// findWAVDataOffset scans the RIFF/WAVE container in wav and returns the byte
-// offset of the first sample in the "data" sub-chunk (i.e., immediately after
-// the data chunk header). This is more robust than hardcoding a fixed 44-byte
-// offset because the fmt chunk size may vary (e.g., when extension fields are present).
+// wavInfo holds the format metadata extracted from a RIFF/WAVE header.
+type wavInfo struct {
+	DataOffset int // byte offset of the first PCM sample
+	SampleRate int // samples per second (e.g., 22050, 44100, 48000)
+	Channels   int // 1 = mono, 2 = stereo
+}
+
+// parseWAV scans the RIFF/WAVE container in wav and returns the data offset
+// and audio format from the "fmt " sub-chunk. This is more robust than
+// hardcoding a fixed 44-byte offset because the fmt chunk size may vary.
 //
-// Returns an error if wav is not a valid RIFF/WAVE container or if the data
-// chunk cannot be located.
-func findWAVDataOffset(wav []byte) (int, error) {
+// Returns an error if wav is not a valid RIFF/WAVE container or if the fmt
+// or data chunk cannot be located.
+func parseWAV(wav []byte) (wavInfo, error) {
 	if len(wav) < 12 {
-		return 0, errors.New("coqui: WAV response too short to be a valid RIFF file")
+		return wavInfo{}, errors.New("coqui: WAV response too short to be a valid RIFF file")
 	}
 	if string(wav[0:4]) != "RIFF" {
-		return 0, errors.New("coqui: WAV response missing RIFF header")
+		return wavInfo{}, errors.New("coqui: WAV response missing RIFF header")
 	}
 	if string(wav[8:12]) != "WAVE" {
-		return 0, errors.New("coqui: WAV response missing WAVE identifier")
+		return wavInfo{}, errors.New("coqui: WAV response missing WAVE identifier")
 	}
+
+	var info wavInfo
+	foundFmt := false
 
 	// Walk RIFF chunks starting immediately after the 12-byte RIFF/WAVE header.
 	offset := 12
 	for offset+8 <= len(wav) {
 		chunkID := string(wav[offset : offset+4])
 		chunkSize := int(binary.LittleEndian.Uint32(wav[offset+4 : offset+8]))
-		if chunkID == "data" {
-			// Data starts immediately after the 8-byte chunk header.
-			return offset + 8, nil
+
+		switch chunkID {
+		case "fmt ":
+			if chunkSize >= 16 && offset+8+16 <= len(wav) {
+				fmtData := wav[offset+8:]
+				info.Channels = int(binary.LittleEndian.Uint16(fmtData[2:4]))
+				info.SampleRate = int(binary.LittleEndian.Uint32(fmtData[4:8]))
+				foundFmt = true
+			}
+		case "data":
+			info.DataOffset = offset + 8
+			if !foundFmt {
+				// fmt chunk should appear before data, but be defensive.
+				info.SampleRate = 22050
+				info.Channels = 1
+			}
+			return info, nil
 		}
+
 		// Advance past this chunk (chunks are word-aligned: pad by 1 if odd size).
 		offset += 8 + chunkSize
 		if chunkSize%2 != 0 {
 			offset++
 		}
 	}
-	return 0, errors.New("coqui: WAV response missing data chunk")
+	return wavInfo{}, errors.New("coqui: WAV response missing data chunk")
+}
+
+// findWAVDataOffset is a convenience wrapper around parseWAV that returns only
+// the data offset. Retained for backward compatibility with tests.
+func findWAVDataOffset(wav []byte) (int, error) {
+	info, err := parseWAV(wav)
+	if err != nil {
+		return 0, err
+	}
+	return info.DataOffset, nil
 }

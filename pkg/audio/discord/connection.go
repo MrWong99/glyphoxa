@@ -200,8 +200,9 @@ func (c *Connection) recvLoop() {
 	}
 }
 
-// sendLoop reads PCM AudioFrames from the output channel, encodes them to Opus,
-// and sends the encoded data via the Discord voice connection.
+// sendLoop reads PCM AudioFrames from the output channel, buffers them,
+// converts mono to stereo, extracts exact Opus frame-sized chunks, encodes
+// them to Opus, and sends the encoded data via the Discord voice connection.
 func (c *Connection) sendLoop() {
 	enc, err := newOpusEncoder()
 	if err != nil {
@@ -211,6 +212,12 @@ func (c *Connection) sendLoop() {
 
 	// Signal speaking when we start sending audio.
 	speakingSet := false
+
+	// opusFrameBytes is the exact PCM input size for one Opus frame:
+	// 960 samples/channel × 2 channels × 2 bytes/sample = 3840 bytes.
+	const opusFrameBytes = opusFrameSize * opusChannels * 2
+
+	var buf []byte
 
 	for {
 		select {
@@ -229,16 +236,29 @@ func (c *Connection) sendLoop() {
 				speakingSet = true
 			}
 
-			opus, eErr := enc.encode(frame.Data)
-			if eErr != nil {
-				slog.Warn("discord: opus encode error", "error", eErr)
-				continue
+			// Convert mono PCM to stereo by duplicating each sample.
+			data := frame.Data
+			if frame.Channels <= 1 {
+				data = monoToStereo(data)
 			}
 
-			select {
-			case c.vc.OpusSend <- opus:
-			case <-c.done:
-				return
+			buf = append(buf, data...)
+
+			// Encode and send complete Opus frames.
+			for len(buf) >= opusFrameBytes {
+				opus, eErr := enc.encode(buf[:opusFrameBytes])
+				if eErr != nil {
+					slog.Warn("discord: opus encode error", "error", eErr)
+					buf = buf[opusFrameBytes:]
+					continue
+				}
+				buf = buf[opusFrameBytes:]
+
+				select {
+				case c.vc.OpusSend <- opus:
+				case <-c.done:
+					return
+				}
 			}
 		}
 	}

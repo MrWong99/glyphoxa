@@ -143,14 +143,26 @@ func TestNew(t *testing.T) {
 
 // ---- SynthesizeStream ----
 
-func TestSynthesizeStream_EmptyVoiceID(t *testing.T) {
-	p := mustNew(t, "http://localhost:8002")
+func TestSynthesizeStream_EmptyVoiceID_XTTS(t *testing.T) {
+	p := mustNew(t, "http://localhost:8002", WithAPIMode(APIModeXTTS))
 	_, err := p.SynthesizeStream(context.Background(), make(chan string), tts.VoiceProfile{})
 	if err == nil {
-		t.Fatal("expected error for empty voice ID, got nil")
+		t.Fatal("expected error for empty voice ID in XTTS mode, got nil")
 	}
 	if !strings.Contains(err.Error(), "coqui:") {
 		t.Errorf("error %q does not have 'coqui:' prefix", err.Error())
+	}
+}
+
+func TestSynthesizeStream_EmptyVoiceID_Standard(t *testing.T) {
+	// Standard mode allows empty voice ID for single-speaker models.
+	p := mustNew(t, "http://localhost:8002")
+	ch, err := p.SynthesizeStream(context.Background(), make(chan string), tts.VoiceProfile{})
+	if err != nil {
+		t.Fatalf("standard mode should accept empty voice ID, got error: %v", err)
+	}
+	if ch == nil {
+		t.Fatal("expected non-nil channel")
 	}
 }
 

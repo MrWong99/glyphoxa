@@ -17,6 +17,9 @@ import (
 	"github.com/MrWong99/glyphoxa/internal/app"
 	"github.com/MrWong99/glyphoxa/internal/config"
 	discordbot "github.com/MrWong99/glyphoxa/internal/discord"
+	"github.com/MrWong99/glyphoxa/internal/discord/commands"
+	"github.com/MrWong99/glyphoxa/internal/entity"
+	"github.com/MrWong99/glyphoxa/internal/feedback"
 	"github.com/MrWong99/glyphoxa/pkg/provider/embeddings"
 	ollamaembed "github.com/MrWong99/glyphoxa/pkg/provider/embeddings/ollama"
 	oaembed "github.com/MrWong99/glyphoxa/pkg/provider/embeddings/openai"
@@ -104,6 +107,52 @@ func run() int {
 	if err != nil {
 		slog.Error("failed to initialise application", "err", err)
 		return 1
+	}
+
+	// ── Discord commands ─────────────────────────────────────────────────────
+	if bot != nil {
+		perms := bot.Permissions()
+
+		sessionMgr := app.NewSessionManager(app.SessionManagerConfig{
+			Platform:     bot.Platform(),
+			Config:       cfg,
+			Providers:    providers,
+			SessionStore: application.SessionStore(),
+			Graph:        application.KnowledgeGraph(),
+			MCPHost:      application.MCPHost(),
+			Entities:     application.EntityStore(),
+		})
+
+		// Session and recap register themselves in the constructor.
+		commands.NewSessionCommands(bot, sessionMgr, perms)
+		commands.NewRecapCommands(commands.RecapConfig{
+			Bot:          bot,
+			SessionMgr:   sessionMgr,
+			Perms:        perms,
+			SessionStore: application.SessionStore(),
+		})
+
+		// Remaining commands need explicit Register() calls.
+		npcCmds := commands.NewNPCCommands(perms, sessionMgr.Orchestrator)
+		npcCmds.Register(bot.Router())
+
+		entityCmds := commands.NewEntityCommands(perms, func() entity.Store { return application.EntityStore() })
+		entityCmds.Register(bot.Router())
+
+		campaignCmds := commands.NewCampaignCommands(
+			perms,
+			func() entity.Store { return application.EntityStore() },
+			func() *config.CampaignConfig { return &cfg.Campaign },
+			sessionMgr.IsActive,
+		)
+		campaignCmds.Register(bot.Router())
+
+		feedbackCmds := commands.NewFeedbackCommands(
+			perms,
+			feedback.NewFileStore("feedback.jsonl"),
+			func() string { return sessionMgr.Info().SessionID },
+		)
+		feedbackCmds.Register(bot.Router())
 	}
 
 	// Start the Discord bot interaction loop in a separate goroutine.
@@ -242,6 +291,8 @@ func registerBuiltinProviders(reg *config.Registry) {
 		if mode := optString(entry.Options, "api_mode"); mode != "" {
 			opts = append(opts, coqui.WithAPIMode(coqui.APIMode(mode)))
 		}
+		// Resample TTS output to 48 kHz for Discord/WebRTC audio pipelines.
+		opts = append(opts, coqui.WithOutputSampleRate(48000))
 		return coqui.New(entry.BaseURL, opts...)
 	})
 

@@ -8,14 +8,10 @@ import (
 	"github.com/MrWong99/glyphoxa/internal/app"
 	"github.com/MrWong99/glyphoxa/internal/config"
 	mcpmock "github.com/MrWong99/glyphoxa/internal/mcp/mock"
-	"github.com/MrWong99/glyphoxa/pkg/audio"
 	audiomock "github.com/MrWong99/glyphoxa/pkg/audio/mock"
 	memorymock "github.com/MrWong99/glyphoxa/pkg/memory/mock"
 	llmmock "github.com/MrWong99/glyphoxa/pkg/provider/llm/mock"
-	"github.com/MrWong99/glyphoxa/pkg/provider/stt"
-	sttmock "github.com/MrWong99/glyphoxa/pkg/provider/stt/mock"
 	ttsmock "github.com/MrWong99/glyphoxa/pkg/provider/tts/mock"
-	vadmock "github.com/MrWong99/glyphoxa/pkg/provider/vad/mock"
 )
 
 // testConfig returns a minimal config with one cascaded NPC for tests.
@@ -152,31 +148,7 @@ func TestApp_RunAndShutdown(t *testing.T) {
 	t.Parallel()
 
 	cfg := testConfig()
-
-	// STT mock: returns a session that we control.
-	sttSession := &sttmock.Session{
-		PartialsCh: make(chan stt.Transcript, 16),
-		FinalsCh:   make(chan stt.Transcript, 16),
-	}
-
-	// VAD mock: always returns speech so audio flows through.
-	vadSession := &vadmock.Session{}
-
-	providers := &app.Providers{
-		LLM: &llmmock.Provider{},
-		TTS: &ttsmock.Provider{},
-		STT: &sttmock.Provider{Session: sttSession},
-		VAD: &vadmock.Engine{Session: vadSession},
-	}
-
-	// Audio mock: a connection with one participant.
-	inputCh := make(chan audio.AudioFrame, 16)
-	conn := &audiomock.Connection{
-		InputStreamsResult: map[string]<-chan audio.AudioFrame{
-			"player-1": inputCh,
-		},
-	}
-	providers.Audio = &audiomock.Platform{ConnectResult: conn}
+	providers := testProviders()
 
 	sessions := &memorymock.SessionStore{}
 	graph := &memorymock.KnowledgeGraph{}
@@ -207,26 +179,6 @@ func TestApp_RunAndShutdown(t *testing.T) {
 	// Give Run a moment to set up goroutines.
 	time.Sleep(50 * time.Millisecond)
 
-	// Push an audio frame into the pipeline.
-	inputCh <- audio.AudioFrame{
-		Data:       []byte{0x01, 0x02, 0x03, 0x04},
-		SampleRate: 48000,
-		Channels:   1,
-	}
-
-	// Give the pipeline time to process.
-	time.Sleep(100 * time.Millisecond)
-
-	// VAD should have processed at least one frame.
-	if got := vadSession.ProcessFrameCallCount(); got < 1 {
-		t.Errorf("VAD ProcessFrame calls = %d, want >= 1", got)
-	}
-
-	// STT should have received audio.
-	if got := sttSession.SendAudioCallCount(); got < 1 {
-		t.Errorf("STT SendAudio calls = %d, want >= 1", got)
-	}
-
 	// Cancel context to trigger shutdown.
 	cancel()
 
@@ -244,10 +196,5 @@ func TestApp_RunAndShutdown(t *testing.T) {
 
 	if err := application.Shutdown(shutdownCtx); err != nil {
 		t.Fatalf("Shutdown() error: %v", err)
-	}
-
-	// Audio connection should have been disconnected.
-	if got := conn.CallCountDisconnect; got != 1 {
-		t.Errorf("Connection Disconnect call count = %d, want 1", got)
 	}
 }

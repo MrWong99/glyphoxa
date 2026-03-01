@@ -155,7 +155,15 @@ services:
     profiles:
       - local
     entrypoint: ["tts-server"]
-    command: ["--model_name", "tts_models/en/ljspeech/vits", "--port", "5002", "--use_cuda", "true"]
+    command:
+      [
+        "--model_name",
+        "tts_models/en/ljspeech/vits",
+        "--port",
+        "5002",
+        "--use_cuda",
+        "true",
+      ]
     volumes:
       - tts_models:/root/.local/share/tts
     deploy:
@@ -166,7 +174,13 @@ services:
               count: all
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5002/')"]
+      test:
+        [
+          "CMD",
+          "python3",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:5002/')",
+        ]
       interval: 15s
       timeout: 10s
       retries: 5

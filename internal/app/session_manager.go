@@ -123,10 +123,17 @@ func (sm *SessionManager) Start(ctx context.Context, channelID string, dmUserID 
 		return fmt.Errorf("session: connect to voice channel: %w", err)
 	}
 
-	// Create mixer for this session.
+	// Create mixer for this session, wired to the voice connection output.
+	outStream := conn.OutputStream()
 	var mixer audio.Mixer
 	var closers []func() error
-	pm := audiomixer.New(func([]byte) {})
+	pm := audiomixer.New(func(pcm []byte) {
+		outStream <- audio.AudioFrame{
+			Data:       pcm,
+			SampleRate: 48000,
+			Channels:   1,
+		}
+	})
 	mixer = pm
 	closers = append(closers, pm.Close)
 
