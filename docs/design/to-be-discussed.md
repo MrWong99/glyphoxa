@@ -39,3 +39,23 @@ conventionally closed by the writer (the caller), not the reader (the platform).
 - D. Return a struct with `Send(frame)` + `Close()` methods instead of a bare channel
 
 **Recommendation:** Option C for now (doc fix), Option D for v1 (richer API).
+
+## 8. Audio Pipeline Format Negotiation ✅
+
+**Decision:** Centralized `FormatConverter` with metadata on `AudioSegment`.
+See `docs/plans/2026-03-01-audio-format-negotiation-design.md`.
+
+## 9. Resampler Quality Upgrade
+
+**Package:** `pkg/audio/`
+
+The `FormatConverter` uses linear interpolation for resampling. This is fast and
+adequate for voice audio but may introduce aliasing artifacts when downsampling
+aggressively (e.g., 48 kHz → 16 kHz). A windowed-sinc or polyphase resampler
+would improve fidelity.
+
+**Options:**
+- A. Use a Go resampling library (e.g., `go-audio/transforms` or similar)
+- B. Implement windowed-sinc interpolation in pure Go (no external dependency)
+
+**Priority:** Low — revisit when audio quality becomes a user-facing concern.
